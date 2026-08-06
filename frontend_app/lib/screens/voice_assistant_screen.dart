@@ -70,7 +70,7 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen> {
   bool _streamFinished = false; // Whether the complete response has arrived
 
   // MethodChannel for sound muting
-  static const _volumeChannel = MethodChannel('com.example.frontend_app/volume');
+  static const _volumeChannel = MethodChannel('com.vyamit.mykirana/volume');
 
   @override
   void initState() {
