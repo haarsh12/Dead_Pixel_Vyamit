@@ -94,7 +94,7 @@ class _SplashScreenState extends State<SplashScreen>
                     ),
                     // Use new Vyamit AI logo
                     child: Image.asset(
-                      'assets/Vyamit_AI.png',
+                      'assets/vyamitlogo.png',
                       width: 100,
                       height: 100,
                       fit: BoxFit.contain,

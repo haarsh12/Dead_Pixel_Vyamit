@@ -57,20 +57,20 @@ dev_dependencies:
 flutter_launcher_icons:
   android: "ic_launcher"
   ios: true
-  image_path: "assets/Vyamit_AI.png"
+  image_path: "assets/vyamitlogo.png"
   min_sdk_android: 21
   web:
     generate: true
-    image_path: "assets/Vyamit_AI.png"
+    image_path: "assets/vyamitlogo.png"
     background_color: "#FFFFFF"
     theme_color: "#C6E377"
   windows:
     generate: true
-    image_path: "assets/Vyamit_AI.png"
+    image_path: "assets/vyamitlogo.png"
     icon_size: 48
   macos:
     generate: true
-    image_path: "assets/Vyamit_AI.png"
+    image_path: "assets/vyamitlogo.png"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -83,7 +83,7 @@ flutter:
     - assets/
     - assets/geminigrocery.png
     - assets/mykiranaicon.png
-    - assets/Vyamit_AI.png
+    - assets/vyamitlogo.png
     # NEW: Images for authentication screens
     - assets/images/
     - assets/images/undraw_shopping_a55o.png

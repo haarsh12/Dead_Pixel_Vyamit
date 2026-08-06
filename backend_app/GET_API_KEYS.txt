@@ -1,0 +1,97 @@
+API KEYS SETUP GUIDE
+====================
+
+Your current API keys are INVALID. Here's how to get valid ones:
+
+1. GEMINI API KEY (Required)
+   ----------------------------
+   Visit: https://makersuite.google.com/app/apikey
+   OR: https://aistudio.google.com/app/apikey
+   
+   Steps:
+   1. Sign in with your Google account
+   2. Click "Create API Key"
+   3. Copy the key (starts with "AIza...")
+   4. Paste in .env as: GEMINI_API_KEY=AIza...your_key_here
+   
+   Current invalid key format: AIzaSyAb8R...yhVLA
+   This doesn't match Gemini's format pattern
+
+
+2. MISTRAL API KEY (Optional)
+   -----------------------------
+   Visit: https://console.mistral.ai/
+   
+   Steps:
+   1. Sign up or log in
+   2. Go to API Keys section
+   3. Create new API key
+   4. Copy the key
+   5. Paste in .env as: MISTRAL_API_KEY=your_key_here
+   
+   Current invalid key: mA5MYh9DEu...1WYjP
+   Getting 401 Unauthorized error
+
+
+TEMPORARY SOLUTION (For Testing Only)
+======================================
+
+Since you need to test the system, I recommend:
+
+1. Comment out API key tests temporarily
+2. Use mock/dummy responses for development
+3. Get valid API keys for production
+
+OR
+
+Use the system in "offline mode" where:
+- Embeddings return zero vectors
+- LLM returns error responses
+- Database and services still work
+
+
+CURRENT TEST STATUS
+===================
+
+✓ PASSING:
+  - Database (PostgreSQL + pgvector)
+  - Services (OTP, SMS, Security)
+  - Performance benchmarks
+  
+✗ FAILING (due to invalid API keys):
+  - Embedding Models
+  - LLM Models  
+  - RAG Pipeline (depends on embeddings/LLM)
+
+⊘ SKIPPED:
+  - API Endpoints (server not running)
+
+
+WHAT TO DO NOW
+===============
+
+Option 1: Get Valid API Keys (Recommended)
+   1. Visit the URLs above
+   2. Create/get API keys
+   3. Update .env file
+   4. Run: python test_all.py
+
+Option 2: Skip AI Tests
+   1. Only test database and services
+   2. Run: python test_database.py
+   3. Run: python test_services.py
+
+Option 3: Use Alternative Free APIs
+   - Hugging Face Inference API (free tier)
+   - OpenAI with trial credits
+   - Local models (Ollama)
+
+
+VERIFY SETUP
+============
+
+After getting valid keys:
+1. Update .env file
+2. Run: python check_env.py
+3. Test APIs: python test_quick_health.py
+4. Run full suite: python test_all.py

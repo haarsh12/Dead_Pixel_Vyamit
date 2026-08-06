@@ -200,7 +200,7 @@ def test_vector_search_performance():
     
     try:
         from db.database import engine
-        from sqlmodel import text
+        from sqlalchemy import text
         
         # Create test vector
         test_vector = [0.1] * 768
@@ -310,6 +310,10 @@ def test_end_to_end_performance():
 
 
 def main():
+    if os.getenv("RUN_BENCHMARKS") != "1":
+        log("SKIPPED: set RUN_BENCHMARKS=1 to run external/database benchmarks.", "WARNING")
+        return True
+
     print(f"\n{BLUE}{'='*60}{RESET}")
     print(f"{BLUE}PERFORMANCE BENCHMARK SUITE{RESET}")
     print(f"{BLUE}{'='*60}{RESET}\n")

@@ -31,6 +31,14 @@ def validate_category(category: str) -> str:
     Returns:
         Valid category name or DEFAULT_CATEGORY
     """
-    if category and category in SHOP_CATEGORIES:
-        return category
+    if not category:
+        return DEFAULT_CATEGORY
+
+    # Case-insensitive matching
+    category_upper = category.upper()
+
+    for valid_cat in SHOP_CATEGORIES:
+        if valid_cat.upper() == category_upper:
+            return valid_cat
+
     return DEFAULT_CATEGORY

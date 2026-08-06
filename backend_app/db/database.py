@@ -22,6 +22,11 @@ if not DATABASE_URL or DATABASE_URL.strip() == "":
         "Format: postgresql://postgres:password@host:port/database"
     )
 
+# Fail fast when a remote database is unavailable. Without an explicit connect
+# timeout, a DNS/network issue can block the test runner indefinitely.
+DB_CONNECT_TIMEOUT = int(os.getenv("DB_CONNECT_TIMEOUT", "10"))
+DB_POOL_TIMEOUT = int(os.getenv("DB_POOL_TIMEOUT", "10"))
+
 # Create engine with connection pooling
 engine = create_engine(
     DATABASE_URL,
@@ -29,7 +34,9 @@ engine = create_engine(
     pool_pre_ping=True,  # Verify connections before use
     pool_recycle=300,  # Recycle connections every 5 minutes
     pool_size=5,
-    max_overflow=10
+    max_overflow=10,
+    pool_timeout=DB_POOL_TIMEOUT,
+    connect_args={"connect_timeout": DB_CONNECT_TIMEOUT},
 )
 
 

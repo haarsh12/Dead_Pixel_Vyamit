@@ -3,9 +3,10 @@ OTP Service - Secure OTP generation and verification
 """
 import logging
 import os
-import random
+import secrets
 import string
 from datetime import datetime, timedelta
+from sqlalchemy import update
 from sqlmodel import Session, select
 from db.models import OTP
 
@@ -31,7 +32,7 @@ class OTPService:
         """
         if OTP_DEMO_MODE:
             return "112233"
-        return "".join(random.choices(string.digits, k=OTP_LENGTH))
+        return "".join(secrets.choice(string.digits) for _ in range(OTP_LENGTH))
     
     @staticmethod
     def create_otp(session: Session, phone_number: str) -> str:
@@ -49,6 +50,14 @@ class OTPService:
         code = OTPService.generate_otp()
         expires_at = datetime.utcnow() + timedelta(minutes=OTP_EXPIRY_MINUTES)
         
+        # Only the most recently issued code may be used. This is especially
+        # important in demo mode, where every code has the same value.
+        session.execute(
+            update(OTP)
+            .where(OTP.phone_number == clean_phone, OTP.is_used.is_(False))
+            .values(is_used=True)
+        )
+
         otp_record = OTP(
             phone_number=clean_phone,
             otp_code=code,
@@ -85,23 +94,35 @@ class OTPService:
         clean_phone = phone_number.strip()
         tail = clean_phone[-4:] if len(clean_phone) >= 4 else "****"
         
+        # A phone can request several codes. Verify only the newest unused
+        # code; accepting an older matching code weakens the login flow.
         statement = select(OTP).where(
             OTP.phone_number == clean_phone,
-            OTP.otp_code == code,
             OTP.is_used == False,
             OTP.expires_at > datetime.utcnow()
-        )
+        ).order_by(OTP.id.desc())
         
         result = session.exec(statement).first()
         
-        if not result:
+        if not result or not secrets.compare_digest(result.otp_code, code):
             logger.warning(f"OTP verification failed for phone ending {tail}")
             return False
         
-        # Mark as used
-        result.is_used = True
-        session.add(result)
+        # Conditional update prevents concurrent requests from consuming the
+        # same code successfully. Exactly one request can change is_used.
+        update_result = session.execute(
+            update(OTP)
+            .where(
+                OTP.id == result.id,
+                OTP.is_used.is_(False),
+                OTP.expires_at > datetime.utcnow(),
+            )
+            .values(is_used=True)
+        )
         session.commit()
+        if update_result.rowcount != 1:
+            logger.warning(f"OTP verification raced or expired for phone ending {tail}")
+            return False
         
         logger.info(f"OTP verified successfully for phone ending {tail}")
         return True

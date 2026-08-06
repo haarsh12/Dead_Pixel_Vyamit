@@ -1,10 +1,11 @@
-"""
-Database Test Suite
-Tests database connection, models, and queries
-"""
-import os
-import sys
+"""Database integration checks that leave no records behind."""
+
+import json
+import uuid
+
 from dotenv import load_dotenv
+from sqlalchemy import text
+from sqlmodel import Session, select
 
 load_dotenv()
 
@@ -15,279 +16,144 @@ BLUE = "\033[94m"
 RESET = "\033[0m"
 
 
-def log(message, level="INFO"):
-    color = {"INFO": BLUE, "SUCCESS": GREEN, "ERROR": RED, "WARNING": YELLOW}.get(level, RESET)
+def log(message: str, level: str = "INFO") -> None:
+    color = {"INFO": BLUE, "SUCCESS": GREEN, "ERROR": RED, "WARNING": YELLOW}[level]
     print(f"{color}[{level}]{RESET} {message}")
 
 
-def test_database_connection():
-    """Test database connection"""
-    log("\n" + "="*60, "INFO")
-    log("Testing Database Connection", "INFO")
-    log("="*60, "INFO")
-    
+def test_database_connection() -> bool:
     try:
         from db.database import engine
-        
-        with engine.connect() as conn:
-            result = conn.execute("SELECT version()").fetchone()
-            log(f"✓ Connected to database", "SUCCESS")
-            log(f"PostgreSQL version: {result[0][:50]}", "INFO")
-            return True
-            
-    except Exception as e:
-        log(f"✗ Database connection failed: {e}", "ERROR")
+
+        with engine.connect() as connection:
+            version = connection.execute(text("SELECT version()")).scalar_one()
+        log("Database connection succeeded", "SUCCESS")
+        log(f"PostgreSQL: {version[:50]}")
+        return True
+    except Exception as exc:
+        log(f"Database connection failed: {exc}", "ERROR")
         return False
 
 
-def test_pgvector_extension():
-    """Test pgvector extension"""
-    log("\n" + "="*60, "INFO")
-    log("Testing pgvector Extension", "INFO")
-    log("="*60, "INFO")
-    
+def test_pgvector_extension() -> bool:
     try:
         from db.database import engine
-        
-        with engine.connect() as conn:
-            result = conn.execute("SELECT extversion FROM pg_extension WHERE extname='vector'").fetchone()
-            
-            if result:
-                log(f"✓ pgvector extension installed", "SUCCESS")
-                log(f"Version: {result[0]}", "INFO")
-                return True
-            else:
-                log("✗ pgvector extension not found", "ERROR")
+
+        with engine.connect() as connection:
+            version = connection.execute(
+                text("SELECT extversion FROM pg_extension WHERE extname = 'vector'")
+            ).scalar_one_or_none()
+        if version is None:
+            log("pgvector extension is not installed", "ERROR")
+            return False
+        log(f"pgvector extension installed (v{version})", "SUCCESS")
+        return True
+    except Exception as exc:
+        log(f"pgvector check failed: {exc}", "ERROR")
+        return False
+
+
+def test_tables_exist() -> bool:
+    expected = {"users", "otps", "items", "bills", "sale_items", "customers"}
+    try:
+        from db.database import engine
+
+        with engine.connect() as connection:
+            actual = set(
+                connection.execute(
+                    text("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
+                ).scalars()
+            )
+        missing = sorted(expected - actual)
+        if missing:
+            log(f"Missing tables: {', '.join(missing)}", "ERROR")
+            return False
+        log("All required tables exist", "SUCCESS")
+        return True
+    except Exception as exc:
+        log(f"Table check failed: {exc}", "ERROR")
+        return False
+
+
+def test_models_rollback_cleanly() -> bool:
+    """Validate ORM models in one transaction, then explicitly roll it back."""
+    try:
+        from db.database import engine
+        from db.models import Item, User
+
+        unique = uuid.uuid4().hex[:12]
+        with Session(engine) as session:
+            user = User(
+                phone_number=f"+91{unique[:10]}",
+                shop_name="Database Test Shop",
+                owner_name="Database Test Owner",
+                address="Temporary test record",
+                shop_category="Kirana",
+            )
+            session.add(user)
+            session.flush()
+
+            item = Item(
+                master_id=f"test-db-{unique}",
+                names=json.dumps(["Test Sugar", "टेस्ट चीनी"], ensure_ascii=False),
+                category="Grocery",
+                price=50.0,
+                unit="kg",
+                owner_id=user.id,
+            )
+            session.add(item)
+            session.flush()
+
+            persisted = session.exec(
+                select(Item).where(Item.master_id == item.master_id)
+            ).one()
+            if persisted.owner_id != user.id or persisted.price != 50.0:
+                log("Model persistence returned unexpected data", "ERROR")
+                session.rollback()
                 return False
-            
-    except Exception as e:
-        log(f"✗ pgvector check failed: {e}", "ERROR")
+
+            session.rollback()
+
+        log("User and item models persist correctly and rollback cleanly", "SUCCESS")
+        return True
+    except Exception as exc:
+        log(f"ORM model check failed: {exc}", "ERROR")
         return False
 
 
-def test_tables_exist():
-    """Test if all tables exist"""
-    log("\n" + "="*60, "INFO")
-    log("Testing Database Tables", "INFO")
-    log("="*60, "INFO")
-    
+def test_vector_operations() -> bool:
     try:
         from db.database import engine
-        
-        expected_tables = ['users', 'otps', 'items', 'bills', 'sale_items', 'customers']
-        
-        with engine.connect() as conn:
-            result = conn.execute(
-                "SELECT tablename FROM pg_tables WHERE schemaname='public'"
-            ).fetchall()
-            
-            existing_tables = [row[0] for row in result]
-            
-            all_exist = True
-            for table in expected_tables:
-                if table in existing_tables:
-                    log(f"✓ Table '{table}' exists", "SUCCESS")
-                else:
-                    log(f"✗ Table '{table}' missing", "ERROR")
-                    all_exist = False
-            
-            return all_exist
-            
-    except Exception as e:
-        log(f"✗ Table check failed: {e}", "ERROR")
-        return False
 
-
-def test_create_user():
-    """Test user creation"""
-    log("\n" + "="*60, "INFO")
-    log("Testing User Model", "INFO")
-    log("="*60, "INFO")
-    
-    try:
-        from db.database import get_session
-        from db.models import User
-        from sqlmodel import select
-        
-        session = next(get_session())
-        
-        # Check if test user exists
-        test_phone = "+919999999998"
-        stmt = select(User).where(User.phone_number == test_phone)
-        existing = session.exec(stmt).first()
-        
-        if existing:
-            log(f"Test user already exists: ID {existing.id}", "INFO")
-            session.close()
-            return True
-        
-        # Create test user
-        user = User(
-            phone_number=test_phone,
-            shop_name="Test Shop",
-            owner_name="Test Owner",
-            address="Test Address",
-            shop_category="Kirana"
-        )
-        
-        session.add(user)
-        session.commit()
-        session.refresh(user)
-        
-        log(f"✓ User created: ID {user.id}", "SUCCESS")
-        log(f"Phone: {user.phone_number}", "INFO")
-        log(f"Shop: {user.shop_name}", "INFO")
-        
-        session.close()
-        return True
-        
-    except Exception as e:
-        log(f"✗ User creation failed: {e}", "ERROR")
-        return False
-
-
-def test_create_item():
-    """Test item creation"""
-    log("\n" + "="*60, "INFO")
-    log("Testing Item Model", "INFO")
-    log("="*60, "INFO")
-    
-    try:
-        from db.database import get_session
-        from db.models import Item, User
-        from sqlmodel import select
-        import json
-        
-        session = next(get_session())
-        
-        # Get first user
-        user = session.exec(select(User)).first()
-        if not user:
-            log("✗ No user found to create item", "ERROR")
+        with engine.connect() as connection:
+            distance = connection.execute(
+                text("SELECT '[0.1,0.2]'::vector <=> '[0.1,0.2]'::vector")
+            ).scalar_one()
+        if float(distance) != 0.0:
+            log(f"Unexpected identical-vector distance: {distance}", "ERROR")
             return False
-        
-        # Create test item
-        item = Item(
-            master_id="test-db-001",
-            names=json.dumps(["Test Sugar", "टेस्ट चीनी"]),
-            category="Grocery",
-            price=50.0,
-            unit="kg",
-            owner_id=user.id
-        )
-        
-        session.add(item)
-        session.commit()
-        session.refresh(item)
-        
-        log(f"✓ Item created: ID {item.id}", "SUCCESS")
-        log(f"Master ID: {item.master_id}", "INFO")
-        log(f"Price: ₹{item.price}", "INFO")
-        
-        session.close()
+        log("pgvector cosine-distance operations work", "SUCCESS")
         return True
-        
-    except Exception as e:
-        log(f"✗ Item creation failed: {e}", "ERROR")
+    except Exception as exc:
+        log(f"Vector operation check failed: {exc}", "ERROR")
         return False
 
 
-def test_vector_search():
-    """Test vector similarity search"""
-    log("\n" + "="*60, "INFO")
-    log("Testing Vector Search", "INFO")
-    log("="*60, "INFO")
-    
-    try:
-        from db.database import engine
-        from sqlmodel import text
-        
-        # Create a test vector
-        test_vector = [0.1] * 768
-        
-        with engine.connect() as conn:
-            # Test cosine distance
-            query = text("""
-                SELECT '[0.1]'::vector <=> '[0.2]'::vector as distance
-            """)
-            result = conn.execute(query).fetchone()
-            
-            log(f"✓ Vector operations working", "SUCCESS")
-            log(f"Test distance: {result[0]}", "INFO")
-            return True
-            
-    except Exception as e:
-        log(f"✗ Vector search failed: {e}", "ERROR")
-        return False
-
-
-def test_item_search():
-    """Test item search by user"""
-    log("\n" + "="*60, "INFO")
-    log("Testing Item Search", "INFO")
-    log("="*60, "INFO")
-    
-    try:
-        from db.database import get_session
-        from db.models import Item, User
-        from sqlmodel import select
-        
-        session = next(get_session())
-        
-        # Get first user
-        user = session.exec(select(User)).first()
-        if not user:
-            log("✗ No user found", "ERROR")
-            return False
-        
-        # Search items
-        stmt = select(Item).where(Item.owner_id == user.id)
-        items = session.exec(stmt).all()
-        
-        log(f"✓ Found {len(items)} items for user {user.id}", "SUCCESS")
-        
-        for item in items[:3]:
-            log(f"  - {item.master_id}: ₹{item.price}", "INFO")
-        
-        session.close()
-        return True
-        
-    except Exception as e:
-        log(f"✗ Item search failed: {e}", "ERROR")
-        return False
-
-
-def main():
-    print(f"\n{BLUE}{'='*60}{RESET}")
-    print(f"{BLUE}DATABASE TEST SUITE{RESET}")
-    print(f"{BLUE}{'='*60}{RESET}\n")
-    
+def main() -> bool:
+    print(f"\n{BLUE}{'=' * 60}{RESET}\n{BLUE}DATABASE TEST SUITE{RESET}\n{BLUE}{'=' * 60}{RESET}")
     results = {
         "connection": test_database_connection(),
         "pgvector": test_pgvector_extension(),
         "tables": test_tables_exist(),
-        "user_model": test_create_user(),
-        "item_model": test_create_item(),
-        "vector_search": test_vector_search(),
-        "item_search": test_item_search()
+        "models": test_models_rollback_cleanly(),
+        "vector_operations": test_vector_operations(),
     }
-    
-    print(f"\n{BLUE}{'='*60}{RESET}")
-    print(f"{BLUE}TEST SUMMARY{RESET}")
-    print(f"{BLUE}{'='*60}{RESET}")
-    
+    print(f"\n{BLUE}{'=' * 60}{RESET}\n{BLUE}TEST SUMMARY{RESET}\n{BLUE}{'=' * 60}{RESET}")
     for name, success in results.items():
-        status = f"{GREEN}✓ PASS{RESET}" if success else f"{RED}✗ FAIL{RESET}"
-        print(f"{name.upper():20} {status}")
-    
-    passed = sum(1 for v in results.values() if v)
-    total = len(results)
-    print(f"\nTotal: {passed}/{total} passed")
-    print(f"{BLUE}{'='*60}{RESET}\n")
-    
+        log(f"{name.upper():20} {'PASS' if success else 'FAIL'}", "SUCCESS" if success else "ERROR")
+    print(f"\nTotal: {sum(results.values())}/{len(results)} passed")
     return all(results.values())
 
 
 if __name__ == "__main__":
-    success = main()
-    exit(0 if success else 1)
+    raise SystemExit(0 if main() else 1)

@@ -19,7 +19,8 @@ passlib[bcrypt]==1.7.4
 python-dotenv==1.0.1
 
 # ---- AI/ML APIs ----
-google-generativeai==0.8.3
+# google-generativeai is retired; use the supported Google Gen AI SDK.
+google-genai==1.69.0
 mistralai==1.2.3
 
 # ---- Communication ----
@@ -31,5 +32,5 @@ pydantic-settings==2.5.2
 
 # ---- Optional: For RAG admin features ----
 # Uncomment if you need advanced analytics or embedding utilities
-# numpy==1.26.4
+numpy==1.26.4
 # scikit-learn==1.5.2

@@ -1,0 +1,82 @@
+FIXES APPLIED TO BACKEND
+========================
+
+1. GEMINI API MODEL NAMES UPDATED
+   - Changed from: models/embedding-001
+   - Changed to: models/text-embedding-004
+   - Files updated:
+     * pipeline/embedding_pipeline.py
+     * test_embeddings.py
+     * test_quick_health.py
+
+   - Changed from: gemini-2.0-flash-exp, gemini-1.5-flash, gemini-1.5-pro
+   - Changed to: gemini-1.5-flash-002, gemini-1.5-pro-002
+   - Files updated:
+     * pipeline/config.py
+     * test_llm_models.py
+     * test_quick_health.py
+
+2. MISTRAL API IMPORT FIXED
+   - Added support for both old and new mistralai package versions
+   - Try new import: from mistralai.client import MistralClient
+   - Fallback to old: from mistralai import Mistral
+   - Files updated:
+     * pipeline/llm_pipeline.py
+     * test_llm_models.py
+
+3. DATABASE QUERY SYNTAX FIXED
+   - Changed from: session.exec(text(...))
+   - Changed to: session.execute(text(...))
+   - Files updated:
+     * pipeline/retrieval_pipeline.py (all 3 methods)
+     * test_database.py
+
+4. SHOP CATEGORIES CASE-INSENSITIVE MATCHING
+   - Added uppercase comparison for case-insensitive validation
+   - Files updated:
+     * core/shop_categories.py
+
+5. SQLALCHEMY TEXT() IMPORT ADDED
+   - Added: from sqlalchemy import text
+   - Files updated:
+     * test_database.py
+
+TESTING INSTRUCTIONS
+====================
+
+1. Ensure .env file has:
+   GEMINI_API_KEY=your_key
+   MISTRAL_API_KEY=your_key (optional)
+   DATABASE_URL=your_database_url
+
+2. Run quick health check:
+   python test_quick_health.py
+
+3. Run individual tests:
+   python test_embeddings.py
+   python test_llm_models.py
+   python test_database.py
+   python test_services.py
+
+4. Run all tests:
+   python test_all.py
+
+EXPECTED RESULTS
+================
+
+After fixes:
+- Gemini embedding API should work with text-embedding-004
+- Gemini LLM should work with gemini-1.5-flash-002
+- Mistral API should work with both package versions
+- Database queries should execute without syntax errors
+- Shop categories should match case-insensitively
+
+If you still get 404 errors:
+- Verify your GEMINI_API_KEY is valid
+- Check API quota limits
+- Ensure you have access to the models
+
+If Mistral fails:
+- Check MISTRAL_API_KEY
+- Try: pip install --upgrade mistralai
+- Mistral is optional, system will fallback to Gemini

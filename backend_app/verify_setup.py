@@ -83,10 +83,10 @@ except ImportError:
     error("sqlmodel not installed")
 
 try:
-    import google.generativeai
-    success("google-generativeai installed")
+    from google import genai
+    success("google-genai installed")
 except ImportError:
-    error("google-generativeai not installed")
+    error("google-genai not installed")
 
 try:
     import pgvector

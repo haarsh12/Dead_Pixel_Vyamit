@@ -10,7 +10,7 @@ from typing import Optional
 class EmbeddingConfig(BaseModel):
     """Embedding configuration"""
     dimension: int = 768
-    model: str = "embedding-001"
+    model: str = "gemini-embedding-001"
     provider: str = "gemini"
 
 
@@ -37,9 +37,9 @@ class LLMConfig(BaseModel):
     primary_max_tokens: int = 500
     
     # Fallback models (Gemini)
-    fallback_models: list = [
-        "gemini-2.0-flash-exp",
-        "gemini-1.5-flash"
+    fallback_models: list[str] = [
+        "gemini-2.5-flash-lite",
+        "gemini-2.5-flash"
     ]
     fallback_temperature: float = 0.1
     fallback_max_tokens: int = 500

@@ -38,8 +38,8 @@ class RetrievalPipeline:
         Returns:
             List of similar items with metadata
         """
-        top_k = top_k or config.retrieval.item_top_k
-        threshold = threshold or config.retrieval.item_similarity_threshold
+        top_k = config.retrieval.item_top_k if top_k is None else top_k
+        threshold = config.retrieval.item_similarity_threshold if threshold is None else threshold
         
         start = time.time()
         
@@ -63,7 +63,7 @@ class RetrievalPipeline:
                     LIMIT :top_k
                 """)
                 
-                result = session.exec(
+                result = session.execute(
                     query,
                     {
                         "embedding": str(query_embedding),
@@ -112,8 +112,8 @@ class RetrievalPipeline:
         Returns:
             List of similar customers with purchase history
         """
-        top_k = top_k or config.retrieval.customer_top_k
-        threshold = threshold or config.retrieval.customer_similarity_threshold
+        top_k = config.retrieval.customer_top_k if top_k is None else top_k
+        threshold = config.retrieval.customer_similarity_threshold if threshold is None else threshold
         
         start = time.time()
         
@@ -136,7 +136,7 @@ class RetrievalPipeline:
                     LIMIT :top_k
                 """)
                 
-                result = session.exec(
+                result = session.execute(
                     query,
                     {
                         "embedding": str(query_embedding),
@@ -199,7 +199,7 @@ class RetrievalPipeline:
                         AND bill_date >= :cutoff_date
                 """)
                 
-                revenue_result = session.exec(
+                revenue_result = session.execute(
                     revenue_query,
                     {"user_id": user_id, "cutoff_date": cutoff_date}
                 ).first()
@@ -220,7 +220,7 @@ class RetrievalPipeline:
                     LIMIT :top_count
                 """)
                 
-                top_items_result = session.exec(
+                top_items_result = session.execute(
                     top_items_query,
                     {
                         "user_id": user_id,

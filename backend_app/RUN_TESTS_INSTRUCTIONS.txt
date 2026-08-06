@@ -1,0 +1,117 @@
+TESTING INSTRUCTIONS AFTER FIXES
+=================================
+
+Step 1: Verify Fixes Applied
+-----------------------------
+python verify_fixes.py
+
+This checks that all code fixes are in place.
+
+
+Step 2: Quick Health Check (Fastest)
+-------------------------------------
+python test_quick_health.py
+
+Tests:
+- Environment variables
+- Gemini API (embedding + LLM)
+- Mistral API
+- Database connection
+- Pipeline initialization
+- Server status
+
+
+Step 3: Run Individual Tests
+-----------------------------
+# Test embeddings (Gemini text-embedding-004)
+python test_embeddings.py
+
+# Test LLM models (Gemini + Mistral)
+python test_llm_models.py
+
+# Test database and pgvector
+python test_database.py
+
+# Test services (OTP, SMS, Security)
+python test_services.py
+
+# Test RAG pipeline integration
+python test_rag_pipeline.py
+
+# Test performance benchmarks
+python test_performance.py
+
+
+Step 4: Interactive Test Menu
+------------------------------
+python run_quick_test.py
+
+Then select:
+[1] Database
+[2] Services
+[3] Embeddings
+[4] LLM Models
+[5] RAG Pipeline
+[6] Performance
+[7] API Endpoints (requires server running)
+[8] All Tests
+
+
+Step 5: Run All Tests
+----------------------
+python test_all.py
+
+This runs everything in sequence.
+
+
+Step 6: Test API Endpoints (Optional)
+--------------------------------------
+# Start server in one terminal
+python main.py
+
+# In another terminal
+python test_api.py
+
+
+TROUBLESHOOTING
+===============
+
+If Gemini 404 errors persist:
+1. Check API key: echo %GEMINI_API_KEY%
+2. Test in browser: https://ai.google.dev
+3. Verify you have access to text-embedding-004
+4. Check quota limits
+
+If Mistral import fails:
+1. Update package: pip install --upgrade mistralai
+2. Check version: pip show mistralai
+3. Mistral is optional - tests will pass with Gemini only
+
+If database errors:
+1. Check DATABASE_URL in .env
+2. Verify PostgreSQL is running
+3. Check pgvector extension installed
+
+If all tests fail:
+1. cd backend_app
+2. python verify_fixes.py
+3. Check .env file exists
+4. Activate virtual environment if needed
+
+
+EXPECTED OUTPUT
+===============
+
+After fixes, you should see:
+✓ Gemini Embedding API working (768D)
+✓ Gemini LLM API working
+✓ Database connection OK
+✓ pgvector extension installed
+✓ OTP service working
+✓ Security module working
+✓ Embedding pipeline working
+✓ LLM pipeline working
+
+Most tests should PASS except:
+- API tests (if server not running)
+- Mistral tests (if API key not set - this is OK)
