@@ -1,0 +1,84 @@
+╔════════════════════════════════════════════════════════════╗
+║     HOW TO INSTALL AND RUN - STEP BY STEP                ║
+╚════════════════════════════════════════════════════════════╝
+
+YOU ARE HERE:
+(venv) PS D:\Smackathon_Vyamit\backend_app>
+
+═══════════════════════════════════════════════════════════
+STEP 1: INSTALL DEPENDENCIES (in venv)
+═══════════════════════════════════════════════════════════
+
+Run this command:
+pip install -r requirements.txt
+
+This will install all packages into your venv.
+
+═══════════════════════════════════════════════════════════
+STEP 2: START SERVER (correct command)
+═══════════════════════════════════════════════════════════
+
+DO NOT USE: python -m uvicorn app.main:app
+            (This is wrong - no 'app' folder!)
+
+USE THIS INSTEAD:
+python main.py
+
+OR:
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+═══════════════════════════════════════════════════════════
+QUICK COMMANDS (copy-paste these)
+═══════════════════════════════════════════════════════════
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Start server (option 1 - easiest)
+python main.py
+
+# Start server (option 2)
+uvicorn main:app --reload
+
+═══════════════════════════════════════════════════════════
+WHY YOUR COMMAND FAILED
+═══════════════════════════════════════════════════════════
+
+❌ python -m uvicorn app.main:app
+                      ^^^^ NO 'app' folder!
+   
+✅ python main.py
+   OR
+✅ uvicorn main:app
+
+Our structure is:
+backend_app/
+├── main.py          ← File is HERE
+├── api/
+├── db/
+└── pipeline/
+
+NOT:
+backend_app/
+└── app/
+    └── main.py      ← We DON'T have this!
+
+═══════════════════════════════════════════════════════════
+COMPLETE SETUP
+═══════════════════════════════════════════════════════════
+
+cd backend_app
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+python main.py
+
+═══════════════════════════════════════════════════════════
+WHAT YOU'LL SEE WHEN IT WORKS
+═══════════════════════════════════════════════════════════
+
+INFO:     Uvicorn running on http://0.0.0.0:8000
+INFO:     Application startup complete.
+
+Then open: http://localhost:8000/docs
+
+═══════════════════════════════════════════════════════════

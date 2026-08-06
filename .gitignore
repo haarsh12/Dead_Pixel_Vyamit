@@ -1,5 +1,29 @@
-# Python
+# ============================================
+# SENSITIVE FILES - NEVER COMMIT THESE!
+# ============================================
+# Environment files with secrets
+backend_app/.env
+backend_app/.env.local
+backend_app/.env.*.local
+.env
+.env.local
+.env.*.local
+.env.example
+# ============================================
+# OLD CODEBASE - REFERENCE ONLY
+# ============================================
+# Old backend codebase (renamed from "previous codebase")
+conses/
+conses
+previous codebase/
+previous codebase
+
+# ============================================
+# PYTHON
+# ============================================
 backend_app/venv/
+backend_app/ENV/
+backend_app/env/
 backend_app/__pycache__/
 backend_app/*.pyc
 backend_app/*.pyo
@@ -10,9 +34,19 @@ backend_app/*.egg
 backend_app/*.egg-info/
 backend_app/dist/
 backend_app/build/
-backend_app/.env
+backend_app/.pytest_cache/
+backend_app/.coverage
+backend_app/htmlcov/
 
-# Flutter/Dart
+# Python cache
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+
+# ============================================
+# FLUTTER/DART
+# ============================================
 frontend_app/.dart_tool/
 frontend_app/.flutter-plugins
 frontend_app/.flutter-plugins-dependencies
@@ -21,13 +55,37 @@ frontend_app/.pub-cache/
 frontend_app/.pub/
 frontend_app/build/
 frontend_app/.idea/
+frontend_app/.metadata
 
-# IDE
+# ============================================
+# IDE & EDITORS
+# ============================================
 .vscode/
+.idea/
 *.iml
+*.swp
+*.swo
+*~
 
-# OS
+# ============================================
+# OS SPECIFIC
+# ============================================
 .DS_Store
 Thumbs.db
+desktop.ini
 
-previous codebase
+# ============================================
+# LOGS & DATABASES
+# ============================================
+*.log
+logs/
+*.db
+*.sqlite
+*.sqlite3
+
+# ============================================
+# MODEL CACHE (if using local embeddings)
+# ============================================
+models/
+.cache/
+sentence_transformers/

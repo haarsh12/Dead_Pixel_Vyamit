@@ -23,9 +23,7 @@ logger = logging.getLogger(__name__)
 from db.database import create_db_and_tables
 
 # Import API routers
-from api import auth
-# TODO: Import remaining routers when created
-# from api import items, analytics, rag
+from api import auth, items, analytics, rag, sms
 
 # CORS configuration
 ALLOWED_ORIGINS = os.getenv("FRONTEND_URL", "http://localhost:3000").split(",")
@@ -87,10 +85,10 @@ app.add_middleware(
 
 # Include routers
 app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
-# TODO: Include remaining routers
-# app.include_router(items.router, prefix="/items", tags=["Inventory"])
-# app.include_router(analytics.router, prefix="/analytics", tags=["Analytics"])
-# app.include_router(rag.router, prefix="/rag", tags=["RAG Voice AI"])
+app.include_router(items.router, prefix="/items", tags=["Inventory"])
+app.include_router(analytics.router, prefix="/analytics", tags=["Analytics"])
+app.include_router(rag.router, prefix="/rag", tags=["RAG Voice AI"])
+app.include_router(sms.router, prefix="/sms", tags=["SMS"])
 
 
 @app.get("/")

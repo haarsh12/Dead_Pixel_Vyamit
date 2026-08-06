@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 
 class ApiConfig {
   // 🚀 PRODUCTION - Render Backend
-  static const String _productionUrl = "https://project-21-m0or.onrender.com";
+  static const String _productionUrl = "    ";
 
   // 🧪 LOCAL DEVELOPMENT URLs (only used when uncommenting local dev code below)
   static const String _emulatorUrl = "http://10.0.2.2:8000";

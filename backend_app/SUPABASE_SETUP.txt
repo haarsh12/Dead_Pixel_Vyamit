@@ -1,0 +1,251 @@
+╔════════════════════════════════════════════════════════════╗
+║          SUPABASE SETUP - COMPLETE GUIDE                  ║
+╚════════════════════════════════════════════════════════════╝
+
+✅ YOUR SUPABASE PROJECT IS ALREADY CONFIGURED!
+
+Project URL: https://jpnwbzdkyvaexexkwprv.supabase.co
+Project Ref: jpnwbzdkyvaexexkwprv
+
+═══════════════════════════════════════════════════════════
+STEP 1: GET DATABASE PASSWORD
+═══════════════════════════════════════════════════════════
+
+1. Go to: https://supabase.com/dashboard
+2. Select your project: jpnwbzdkyvaexexkwprv
+3. Go to: Settings → Database
+4. Find "Connection string" section
+5. Click "Reset Database Password" (if needed)
+6. Copy your password
+
+═══════════════════════════════════════════════════════════
+STEP 2: UPDATE .ENV FILE
+═══════════════════════════════════════════════════════════
+
+Open backend_app/.env and update:
+
+1. Replace YOUR_DATABASE_PASSWORD with your actual password:
+
+   DATABASE_URL=postgresql://postgres.jpnwbzdkyvaexexkwprv:YOUR_ACTUAL_PASSWORD@aws-0-ap-south-1.pooler.supabase.com:6543/postgres
+
+   Example:
+   DATABASE_URL=postgresql://postgres.jpnwbzdkyvaexexkwprv:MySecurePass123@aws-0-ap-south-1.pooler.supabase.com:6543/postgres
+
+2. Generate SECRET_KEY:
+   
+   python -c "import secrets; print(secrets.token_urlsafe(32))"
+   
+   Copy output and replace in .env:
+   SECRET_KEY=your_generated_key_here
+
+3. Add GEMINI_API_KEY:
+   
+   Get from: https://makersuite.google.com/app/apikey
+   GEMINI_API_KEY=AIza...your_key_here
+
+═══════════════════════════════════════════════════════════
+STEP 3: ENABLE PGVECTOR IN SUPABASE
+═══════════════════════════════════════════════════════════
+
+1. Go to: https://supabase.com/dashboard/project/jpnwbzdkyvaexexkwprv/sql
+2. Click "New Query"
+3. Paste this:
+
+   CREATE EXTENSION IF NOT EXISTS vector;
+
+4. Click "Run" or press Ctrl+Enter
+5. You should see: "Success. No rows returned"
+
+═══════════════════════════════════════════════════════════
+STEP 4: VERIFY CONNECTION
+═══════════════════════════════════════════════════════════
+
+Run verification script:
+
+cd backend_app
+python verify_setup.py
+
+Look for:
+✅ Database connection successful
+✅ pgvector extension enabled
+
+═══════════════════════════════════════════════════════════
+STEP 5: START BACKEND
+═══════════════════════════════════════════════════════════
+
+python main.py
+
+Or use startup scripts:
+.\start.ps1    # Windows
+./start.sh     # Linux/Mac
+
+═══════════════════════════════════════════════════════════
+EXPECTED OUTPUT
+═══════════════════════════════════════════════════════════
+
+You should see:
+────────────────────────────────────────────────────────────
+APPLICATION STARTUP
+────────────────────────────────────────────────────────────
+[OK] pgvector extension enabled
+[OK] Database tables created successfully
+[OK] Embedding pipeline ready (lazy loading)
+────────────────────────────────────────────────────────────
+APPLICATION READY
+────────────────────────────────────────────────────────────
+INFO: Uvicorn running on http://0.0.0.0:8000
+
+═══════════════════════════════════════════════════════════
+STEP 6: TEST API
+═══════════════════════════════════════════════════════════
+
+1. Open: http://localhost:8000/docs
+
+2. Test health endpoint:
+   GET /health
+   Response: {"status": "ok"}
+
+3. Test authentication:
+   POST /auth/request-otp
+   {
+     "phone_number": "9876543210",
+     "is_login": false
+   }
+
+4. Use demo OTP: 112233 (since OTP_DEMO_MODE=1)
+
+5. Verify OTP:
+   POST /auth/verify-otp
+   {
+     "phone_number": "9876543210",
+     "otp_code": "112233",
+     "shop_name": "Test Shop",
+     "owner_name": "Test Owner",
+     "shop_category": "Kirana"
+   }
+
+6. You'll get a JWT token!
+
+═══════════════════════════════════════════════════════════
+STEP 7: VERIFY DATABASE TABLES
+═══════════════════════════════════════════════════════════
+
+After starting backend, check Supabase:
+
+1. Go to: https://supabase.com/dashboard/project/jpnwbzdkyvaexexkwprv/editor
+2. You should see tables:
+   - users
+   - otps
+   - items
+   - bills
+   - sale_items
+   - customers
+
+═══════════════════════════════════════════════════════════
+CONNECTION STRING OPTIONS
+═══════════════════════════════════════════════════════════
+
+You have 2 connection options:
+
+Option 1: Connection Pooler (Recommended for production)
+DATABASE_URL=postgresql://postgres.jpnwbzdkyvaexexkwprv:PASSWORD@aws-0-ap-south-1.pooler.supabase.com:6543/postgres
+
+Option 2: Direct Connection (Better for development)
+DATABASE_URL=postgresql://postgres:PASSWORD@db.jpnwbzdkyvaexexkwprv.supabase.co:5432/postgres
+
+Start with Option 1. If you get connection issues, try Option 2.
+
+═══════════════════════════════════════════════════════════
+SUPABASE DASHBOARD LINKS
+═══════════════════════════════════════════════════════════
+
+Project Home:
+https://supabase.com/dashboard/project/jpnwbzdkyvaexexkwprv
+
+Database Settings:
+https://supabase.com/dashboard/project/jpnwbzdkyvaexexkwprv/settings/database
+
+SQL Editor:
+https://supabase.com/dashboard/project/jpnwbzdkyvaexexkwprv/sql
+
+Table Editor:
+https://supabase.com/dashboard/project/jpnwbzdkyvaexexkwprv/editor
+
+API Documentation:
+https://supabase.com/dashboard/project/jpnwbzdkyvaexexkwprv/api
+
+═══════════════════════════════════════════════════════════
+TROUBLESHOOTING
+═══════════════════════════════════════════════════════════
+
+❌ "connection refused"
+   → Check DATABASE_URL is correct
+   → Verify password is correct
+   → Try direct connection (Option 2)
+
+❌ "pgvector not found"
+   → Run: CREATE EXTENSION IF NOT EXISTS vector;
+   → In Supabase SQL Editor
+
+❌ "Invalid API key"
+   → Check GEMINI_API_KEY in .env
+   → Get new key from Google AI Studio
+
+❌ "Permission denied"
+   → Check database password
+   → Reset password in Supabase dashboard
+
+❌ "Port 8000 already in use"
+   → Change PORT in .env
+   → Or kill existing process
+
+═══════════════════════════════════════════════════════════
+CHECKLIST
+═══════════════════════════════════════════════════════════
+
+□ Got database password from Supabase
+□ Updated DATABASE_URL in .env
+□ Generated SECRET_KEY
+□ Got GEMINI_API_KEY
+□ Ran CREATE EXTENSION vector in SQL editor
+□ Ran python verify_setup.py
+□ Started backend with python main.py
+□ Tested /health endpoint
+□ Tested authentication flow
+□ Verified tables created in Supabase
+
+═══════════════════════════════════════════════════════════
+NEXT STEPS
+═══════════════════════════════════════════════════════════
+
+✅ Backend is running on Supabase!
+
+1. Test all API endpoints at: http://localhost:8000/docs
+2. Add some items to inventory
+3. Generate embeddings: POST /items/bulk-embed
+4. Try RAG queries: POST /rag/query
+5. Check analytics: GET /analytics/dashboard
+
+═══════════════════════════════════════════════════════════
+PRODUCTION DEPLOYMENT
+═══════════════════════════════════════════════════════════
+
+When ready to deploy:
+
+1. Update .env for production:
+   - Set OTP_DEMO_MODE=0
+   - Add real FAST2SMS_API_KEY
+   - Update FRONTEND_URL
+
+2. Deploy to Render/Railway:
+   - Set all environment variables
+   - Use connection pooler URL
+   - Start command: uvicorn main:app --host 0.0.0.0 --port $PORT
+
+3. Your Supabase is already production-ready!
+
+═══════════════════════════════════════════════════════════
+
+✅ YOUR BACKEND + SUPABASE = READY TO GO! 🚀
+
+Need help? Run: python verify_setup.py
