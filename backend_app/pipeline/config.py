@@ -38,8 +38,8 @@ class LLMConfig(BaseModel):
     
     # Fallback models (Gemini)
     fallback_models: list[str] = [
-        "gemini-2.5-flash-lite",
-        "gemini-2.5-flash"
+        "gemini-3.5-flash-lite",
+        "gemini-3.6-flash"
     ]
     fallback_temperature: float = 0.1
     fallback_max_tokens: int = 500
