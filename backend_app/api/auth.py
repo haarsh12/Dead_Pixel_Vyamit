@@ -2,7 +2,7 @@
 Authentication API Routes
 OTP-based login and registration
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlmodel import Session, select
 from db.database import get_session
 from db.models import User
@@ -16,7 +16,9 @@ from core.security import create_access_token, get_current_user
 from core.shop_categories import validate_category
 from services.otp_service import otp_service
 from services.sms_service import sms_service
+from core.rate_limit import otp_rate_limiter
 import logging
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -24,7 +26,8 @@ router = APIRouter()
 
 @router.post("/send-otp", status_code=status.HTTP_200_OK)
 def send_otp(
-    request: OTPRequest,
+    payload: OTPRequest,
+    request: Request,
     session: Session = Depends(get_session)
 ):
     """
@@ -34,19 +37,20 @@ def send_otp(
     - **is_login**: True for login, False for new registration
     """
     try:
-        phone = request.phone_number.strip()
+        phone = payload.phone_number.strip()
+        otp_rate_limiter.check(request.client.host if request.client else "unknown", phone)
         
         # Check if user exists
         statement = select(User).where(User.phone_number == phone)
         user = session.exec(statement).first()
         
-        if request.is_login and not user:
+        if payload.is_login and not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Phone number not registered. Please sign up first."
             )
         
-        if not request.is_login and user:
+        if not payload.is_login and user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Phone number already registered. Please login instead."
@@ -180,6 +184,7 @@ def get_profile(
 
 
 @router.put("/profile", status_code=status.HTTP_200_OK)
+@router.put("/update-profile", status_code=status.HTTP_200_OK, include_in_schema=False)
 def update_profile(
     request: UpdateProfileRequest,
     user_id: int = Depends(get_current_user),
@@ -205,6 +210,7 @@ def update_profile(
         user.phone2 = request.phone2
     if request.shop_category is not None:
         user.shop_category = validate_category(request.shop_category)
+    user.updated_at = datetime.utcnow()
     
     session.add(user)
     session.commit()
@@ -212,15 +218,15 @@ def update_profile(
     
     logger.info(f"Profile updated for user {user.id}")
     
+    # These profile fields are deliberately top-level: this is the response
+    # contract already consumed by the existing Flutter AuthProvider.
     return {
         "success": True,
         "message": "Profile updated successfully",
-        "user": {
-            "user_id": user.id,
-            "shop_name": user.shop_name,
-            "owner_name": user.owner_name,
-            "address": user.address,
-            "phone2": user.phone2,
-            "shop_category": user.shop_category
-        }
+        "user_id": user.id,
+        "shop_name": user.shop_name,
+        "owner_name": user.owner_name,
+        "address": user.address,
+        "phone2": user.phone2,
+        "shop_category": user.shop_category,
     }

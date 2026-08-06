@@ -20,15 +20,16 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Import database
-from db.database import create_db_and_tables
+from db.database import create_db_and_tables, database_is_configured
 
 # Import API routers
-from api import auth, items, analytics, rag, sms
+from api import analytics, auth, items, rag, sms, voice, voice_inventory
 
-# CORS configuration
-ALLOWED_ORIGINS = os.getenv("FRONTEND_URL", "http://localhost:3000").split(",")
-# Add local development origins
-for origin in ["http://localhost:8080", "http://127.0.0.1:3000", "http://127.0.0.1:8080"]:
+# CORS configuration.  Browsers reject wildcard origins when credentials are
+# allowed, so use an explicit, configurable allow-list instead.
+_configured_origins = os.getenv("FRONTEND_URL", "").split(",")
+ALLOWED_ORIGINS = [origin.strip().rstrip("/") for origin in _configured_origins if origin.strip()]
+for origin in ("http://localhost:3000", "http://localhost:8080", "http://127.0.0.1:3000", "http://127.0.0.1:8080"):
     if origin not in ALLOWED_ORIGINS:
         ALLOWED_ORIGINS.append(origin)
 
@@ -77,7 +78,7 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all for mobile app
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -89,6 +90,8 @@ app.include_router(items.router, prefix="/items", tags=["Inventory"])
 app.include_router(analytics.router, prefix="/analytics", tags=["Analytics"])
 app.include_router(rag.router, prefix="/rag", tags=["RAG Voice AI"])
 app.include_router(sms.router, prefix="/sms", tags=["SMS"])
+app.include_router(voice.router, prefix="/voice", tags=["Voice AI"])
+app.include_router(voice_inventory.router, prefix="/inventory", tags=["Voice Inventory"])
 
 
 @app.get("/")
@@ -104,7 +107,7 @@ def root():
 @app.get("/health")
 def health_check():
     """Health check endpoint for load balancers"""
-    return {"status": "ok"}
+    return {"status": "ok", "database_configured": database_is_configured()}
 
 
 @app.get("/info")

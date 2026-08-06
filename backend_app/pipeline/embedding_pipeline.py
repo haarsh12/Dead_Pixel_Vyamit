@@ -32,15 +32,19 @@ class GeminiEmbeddingPipeline:
         self.api_key = os.getenv("GEMINI_API_KEY", "").strip()
         self.model = os.getenv("GEMINI_EMBEDDING_MODEL", DEFAULT_EMBEDDING_MODEL)
 
-        if not self.api_key:
-            raise ValueError(
-                "GEMINI_API_KEY is required. Add a valid Gemini API key to .env."
-            )
+        # Keep the application importable without AI credentials so health
+        # checks and non-AI endpoints can run. Actual embedding requests fail
+        # with an explicit, provider-safe error below.
 
     def _ensure_initialized(self) -> None:
         """Lazily create the current Google Gen AI SDK client."""
         if self._initialized:
             return
+
+        if not self.api_key:
+            raise EmbeddingServiceError(
+                "Gemini embeddings are unavailable. Configure GEMINI_API_KEY to enable RAG."
+            )
 
         try:
             from google import genai

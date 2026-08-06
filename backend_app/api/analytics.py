@@ -11,6 +11,7 @@ from db.database import get_session
 from db.models import Bill, SaleItem, Item
 from db.schemas import BillCreate, BillResponse
 from core.security import get_current_user
+from services.customer_service import record_customer_purchase
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -24,14 +25,31 @@ def create_bill(
 ):
     """Save a new bill and create sale items for analytics"""
     try:
-        logger.info(f"Creating bill for user {user_id}: ₹{bill_data.total_amount}")
+        calculated_total = round(sum(item.total for item in bill_data.items), 2)
+        if abs(calculated_total - bill_data.total_amount) > 0.01:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="total_amount must equal the sum of item totals",
+            )
+        logger.info("Creating bill for user=%s items=%s", user_id, len(bill_data.items))
+
+        # Preserve category analytics for known inventory items instead of
+        # assigning every sale to the catch-all General category.
+        category_by_name = {}
+        for inventory_item in session.exec(select(Item).where(Item.owner_id == user_id)).all():
+            try:
+                names = json.loads(inventory_item.names)
+            except (TypeError, json.JSONDecodeError):
+                names = [inventory_item.names]
+            for name in names:
+                category_by_name[str(name).strip().casefold()] = inventory_item.category or "General"
         
         # Create bill
         bill = Bill(
             owner_id=user_id,
-            total_amount=bill_data.total_amount,
+            total_amount=calculated_total,
             total_items=len(bill_data.items),
-            items_json=json.dumps([item.dict() for item in bill_data.items]),
+            items_json=json.dumps([item.model_dump() for item in bill_data.items]),
             customer_phone=bill_data.customer_phone,
             customer_name=bill_data.customer_name,
             payment_method=bill_data.payment_method,
@@ -49,7 +67,7 @@ def create_bill(
                 owner_id=user_id,
                 bill_id=bill.id,
                 item_name=item.name,
-                item_category="General",  # Can be enhanced
+                item_category=category_by_name.get(item.name.strip().casefold(), "General"),
                 quantity=item.quantity,
                 unit=item.unit,
                 price_per_unit=item.price,
@@ -58,6 +76,15 @@ def create_bill(
                 hour_of_day=current_hour
             )
             session.add(sale_item)
+
+        record_customer_purchase(
+            session,
+            owner_id=user_id,
+            phone_number=bill_data.customer_phone,
+            name=bill_data.customer_name,
+            amount=calculated_total,
+            purchased_at=bill.bill_date,
+        )
         
         session.commit()
         session.refresh(bill)
@@ -70,6 +97,9 @@ def create_bill(
             "message": "Bill saved successfully"
         }
         
+    except HTTPException:
+        session.rollback()
+        raise
     except Exception as e:
         session.rollback()
         logger.error(f"Failed to create bill: {e}")

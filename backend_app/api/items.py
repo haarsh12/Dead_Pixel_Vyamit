@@ -7,6 +7,7 @@ from sqlmodel import Session, select
 from typing import List
 import json
 import logging
+from datetime import datetime
 from db.database import get_session
 from db.models import Item
 from db.schemas import ItemCreate, ItemUpdate, ItemResponse
@@ -40,6 +41,7 @@ def create_item(
             existing_item.price = item.price
             existing_item.unit = item.unit
             existing_item.category = item.category
+            existing_item.updated_at = datetime.utcnow()
             
             session.add(existing_item)
             session.commit()
@@ -137,6 +139,7 @@ def get_items(
 
 
 @router.put("/{item_id}", response_model=ItemResponse)
+@router.put("/{item_id}/", response_model=ItemResponse, include_in_schema=False)
 def update_item(
     item_id: str,
     item: ItemUpdate,
@@ -162,6 +165,7 @@ def update_item(
         existing_item.price = item.price
         existing_item.unit = item.unit
         existing_item.category = item.category
+        existing_item.updated_at = datetime.utcnow()
         
         session.add(existing_item)
         session.commit()
@@ -192,6 +196,7 @@ def update_item(
 
 
 @router.delete("/{item_id}")
+@router.delete("/{item_id}/", include_in_schema=False)
 def delete_item(
     item_id: str,
     user_id: int = Depends(get_current_user),

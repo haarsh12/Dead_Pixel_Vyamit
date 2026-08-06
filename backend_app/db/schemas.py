@@ -1,7 +1,9 @@
 """
 Pydantic Schemas for API Request/Response
 """
-from pydantic import BaseModel, Field
+import re
+
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List
 from datetime import datetime
 
@@ -12,6 +14,18 @@ class OTPRequest(BaseModel):
     """Request OTP for login/register"""
     phone_number: str = Field(..., min_length=10, max_length=15)
     is_login: bool = True
+
+    @field_validator("phone_number")
+    @classmethod
+    def validate_phone_number(cls, value: str) -> str:
+        """Accept Indian mobile input and store it in a stable E.164 format."""
+        cleaned = re.sub(r"[\s()\-]", "", value)
+        digits = cleaned[1:] if cleaned.startswith("+") else cleaned
+        if digits.startswith("91") and len(digits) == 12:
+            digits = digits[2:]
+        if not re.fullmatch(r"[6-9]\d{9}", digits):
+            raise ValueError("phone_number must be a valid Indian 10-digit mobile number")
+        return f"+91{digits}"
 
 
 class VerifyOTPRequest(BaseModel):
@@ -24,6 +38,8 @@ class VerifyOTPRequest(BaseModel):
     owner_name: Optional[str] = None
     address: Optional[str] = None
     shop_category: Optional[str] = None
+
+    _validate_phone_number = field_validator("phone_number")(OTPRequest.validate_phone_number)
 
 
 class TokenResponse(BaseModel):
@@ -83,17 +99,17 @@ class ItemResponse(ItemBase):
 
 class BillItem(BaseModel):
     """Individual item in a bill"""
-    name: str
-    quantity: float
-    unit: str
-    price: float
-    total: float
+    name: str = Field(..., min_length=1, max_length=100)
+    quantity: float = Field(..., gt=0, le=100_000)
+    unit: str = Field(..., min_length=1, max_length=30)
+    price: float = Field(..., ge=0, le=10_000_000)
+    total: float = Field(..., ge=0, le=1_000_000_000)
 
 
 class BillCreate(BaseModel):
     """Create new bill"""
-    items: List[BillItem]
-    total_amount: float
+    items: List[BillItem] = Field(..., min_length=1, max_length=100)
+    total_amount: float = Field(..., ge=0, le=1_000_000_000)
     customer_phone: Optional[str] = None
     customer_name: Optional[str] = None
     payment_method: Optional[str] = "cash"
