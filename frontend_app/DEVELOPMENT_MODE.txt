@@ -1,0 +1,171 @@
+╔════════════════════════════════════════════════════════════╗
+║     DEVELOPMENT MODE - ACTIVATED ✓                        ║
+╚════════════════════════════════════════════════════════════╝
+
+✅ Config.dart is now in DEVELOPMENT MODE
+
+Your app will connect to LOCAL backend on your computer.
+
+═══════════════════════════════════════════════════════════
+📱 CURRENT CONFIGURATION
+═══════════════════════════════════════════════════════════
+
+Backend URL: http://192.168.110.207:8000
+Device Type: Real Android Device (via USB)
+Your PC IP:  192.168.110.207
+
+For Emulator: http://10.0.2.2:8000
+For Web/PC:   http://localhost:8000
+
+═══════════════════════════════════════════════════════════
+🚀 HOW TO RUN
+═══════════════════════════════════════════════════════════
+
+STEP 1: Start Backend (on your PC)
+──────────────────────────────────────────────────────────
+cd backend_app
+python main.py
+
+Wait for:
+INFO: Uvicorn running on http://0.0.0.0:8000
+
+STEP 2: Connect Phone
+──────────────────────────────────────────────────────────
+- Connect phone via USB
+- Enable USB Debugging
+- Accept prompt on phone
+
+Verify connection:
+flutter devices
+
+Should show your device
+
+STEP 3: Run Flutter App
+──────────────────────────────────────────────────────────
+cd frontend_app
+flutter run
+
+Or in VS Code:
+- Open Run & Debug (Ctrl+Shift+D)
+- Select your device
+- Click "Start Debugging" (F5)
+
+═══════════════════════════════════════════════════════════
+🔧 TROUBLESHOOTING
+═══════════════════════════════════════════════════════════
+
+❌ "Connection refused" or "Failed to connect"
+──────────────────────────────────────────────────────────
+1. Check backend is running (python main.py)
+2. Check your PC firewall allows port 8000
+3. Verify phone and PC on same WiFi network
+4. Check IP address hasn't changed:
+   Run: ipconfig
+   Look for: IPv4 Address
+   Update in config.dart if different
+
+❌ Backend not accessible from phone
+──────────────────────────────────────────────────────────
+1. Test from PC first: http://localhost:8000/docs
+2. Test from PC with IP: http://192.168.110.207:8000/docs
+3. If #2 fails, check Windows Firewall:
+   - Open Windows Defender Firewall
+   - Allow Python through firewall
+   - Or temporarily disable for testing
+
+❌ IP Address changed
+──────────────────────────────────────────────────────────
+Your IP might change if:
+- You reconnect to WiFi
+- Router assigns new IP
+- You switch networks
+
+To fix:
+1. Run: ipconfig
+2. Find new IPv4 Address
+3. Update frontend_app/lib/core/config.dart line 10:
+   static const String _realDeviceUrl = "http://NEW_IP:8000";
+
+═══════════════════════════════════════════════════════════
+✅ VERIFY CONNECTION
+═══════════════════════════════════════════════════════════
+
+From your phone's browser:
+http://192.168.110.207:8000/docs
+
+Should show: FastAPI interactive docs
+
+From your PC's browser:
+http://localhost:8000/docs
+
+Should show: Same FastAPI docs
+
+If both work → Your setup is correct! ✓
+
+═══════════════════════════════════════════════════════════
+🔄 SWITCH TO PRODUCTION MODE
+═══════════════════════════════════════════════════════════
+
+When deploying to production:
+
+1. Open: frontend_app/lib/core/config.dart
+
+2. Change line 13-33 back to:
+   static String get baseUrl {
+     return _productionUrl;
+   }
+
+3. Update line 6 with your production URL:
+   static const String _productionUrl = "https://your-backend.onrender.com";
+
+═══════════════════════════════════════════════════════════
+📋 CHECKLIST
+═══════════════════════════════════════════════════════════
+
+□ Backend running: python main.py
+□ Shows: Uvicorn running on http://0.0.0.0:8000
+□ Phone connected via USB
+□ USB Debugging enabled on phone
+□ Phone and PC on same WiFi
+□ Can access http://192.168.110.207:8000/docs from phone browser
+□ Flutter app running: flutter run
+
+═══════════════════════════════════════════════════════════
+🎯 QUICK COMMANDS
+═══════════════════════════════════════════════════════════
+
+# Check your IP
+ipconfig
+
+# Start backend
+cd backend_app
+python main.py
+
+# Check devices
+flutter devices
+
+# Run app
+cd frontend_app
+flutter run
+
+# Test backend from PC
+curl http://localhost:8000/health
+
+═══════════════════════════════════════════════════════════
+💡 TIPS
+═══════════════════════════════════════════════════════════
+
+✓ Keep backend running while testing app
+✓ Backend auto-reloads on code changes
+✓ Use hot reload in Flutter (press 'r' in terminal)
+✓ Check backend terminal for API request logs
+✓ Use /docs endpoint to test APIs manually
+
+═══════════════════════════════════════════════════════════
+
+🎉 YOU'RE IN DEVELOPMENT MODE!
+
+Backend: http://192.168.110.207:8000
+Status: Ready to connect from your phone
+
+═══════════════════════════════════════════════════════════

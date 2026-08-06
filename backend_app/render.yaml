@@ -1,0 +1,26 @@
+# Render deployment configuration
+services:
+  - type: web
+    name: mykirana-backend
+    env: python
+    region: singapore
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: MISTRAL_API_KEY
+        sync: false
+      - key: FAST2SMS_API_KEY
+        sync: false
+      - key: OTP_DEMO_MODE
+        value: 0
+      - key: RENDER
+        value: 1

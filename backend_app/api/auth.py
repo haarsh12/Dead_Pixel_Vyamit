@@ -22,13 +22,13 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.post("/request-otp", status_code=status.HTTP_200_OK)
-def request_otp(
+@router.post("/send-otp", status_code=status.HTTP_200_OK)
+def send_otp(
     request: OTPRequest,
     session: Session = Depends(get_session)
 ):
     """
-    Request OTP for login or registration
+    Send OTP for login or registration
     
     - **phone_number**: User's phone number
     - **is_login**: True for login, False for new registration

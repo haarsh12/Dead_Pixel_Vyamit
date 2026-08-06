@@ -121,9 +121,11 @@ def system_info():
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8000))
+    # Disable reload in production (Render), enable in local development
+    reload_mode = os.getenv("RENDER") is None
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
         port=port,
-        reload=True
+        reload=reload_mode
     )

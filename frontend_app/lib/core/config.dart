@@ -11,11 +11,7 @@ class ApiConfig {
   static const String _localUrl = "http://localhost:8000";
 
   static String get baseUrl {
-    // 🚀 PRODUCTION MODE - Render Backend
-    return _productionUrl;
-    
-    // 🧪 DEVELOPMENT MODE - Uncomment below for local testing:
-    /*
+    // 🧪 DEVELOPMENT MODE - Local Backend
     if (kReleaseMode) {
       return _productionUrl;  // Use production in release mode
     }
@@ -26,6 +22,10 @@ class ApiConfig {
     }
 
     return _localUrl;  // Web/Windows
+    
+    // 🚀 PRODUCTION MODE - Uncomment below for production:
+    /*
+    return _productionUrl;
     */
   }
 

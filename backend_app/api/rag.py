@@ -4,6 +4,7 @@ Handles voice queries with context-aware responses
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
+from typing import Dict, Any
 import logging
 import time
 from db.database import get_session, engine
