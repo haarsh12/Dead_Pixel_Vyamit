@@ -13,6 +13,9 @@ import '../core/theme.dart';
 import '../models/shop_details.dart';
 import '../services/api_client.dart';
 import '../providers/bill_provider.dart';
+import '../providers/inventory_provider.dart';
+import '../widgets/gst_confirmation_dialog.dart';
+import '../widgets/gst_toggle_button.dart';
 import 'bill_share_modal.dart';
 
 class VoiceAssistantScreen extends StatefulWidget {
@@ -62,6 +65,7 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen> {
 
   // Edit Mode State
   bool _isEditMode = false;
+  bool _isGstEnabled = false;
 
   // TTS Queue & Streaming State
   final List<String> _ttsQueue = [];
@@ -347,6 +351,7 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen> {
               'rate': (item['rate'] ?? item['price'] ?? item['unit_price'] ?? 0).toDouble(),
               'total': (item['total'] ?? item['line_total'] ?? 0).toDouble(),
               'unit': unit,
+              'gst_rate': _gstRateForItem(item),
             };
 
             billProvider.addBillItem(normalizedItem);
@@ -834,6 +839,7 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen> {
             'rate': (item['rate'] ?? item['price'] ?? item['unit_price'] ?? 0).toDouble(),
             'total': (item['total'] ?? item['line_total'] ?? 0).toDouble(),
             'unit': unit,
+            'gst_rate': _gstRateForItem(item),
           };
 
           billProvider.addBillItem(normalizedItem);
@@ -844,6 +850,23 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen> {
       setState(() => _aiResponseText = "Server Error");
       _resumeListeningAfterTts();
     }
+  }
+
+  double? _gstRateForItem(Map<String, dynamic> item) {
+    final suppliedRate = item['gst_rate'];
+    if (suppliedRate is num) return suppliedRate.toDouble();
+
+    final itemName =
+        item['name'] ?? item['en'] ?? item['item_name'] ?? '';
+    return Provider.of<InventoryProvider>(context, listen: false)
+        .gstRateForItemName(itemName.toString());
+  }
+
+  String _formatGstRate(dynamic value) {
+    if (value is! num) return '--';
+    return value == value.roundToDouble()
+        ? '${value.toInt()}%'
+        : '${value.toString()}%';
   }
 
   void _finalizeBill() async {
@@ -912,6 +935,25 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen> {
     setState(() {
       _aiResponseText = "Bill Printed!";
     });
+  }
+
+  Future<void> _handlePrintPressed() async {
+    if (_isGstEnabled) {
+      final shouldProceed = await showGstInvoiceConfirmationDialog(context);
+      if (!mounted || !shouldProceed) return;
+    }
+
+    _finalizeBill();
+  }
+
+  Widget _buildBillTableRow(Widget child) {
+    if (!_isGstEnabled) return child;
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: SizedBox(width: 760, child: child),
+    );
   }
 
   void _openShareModal(BillProvider billProvider) {
@@ -1358,6 +1400,13 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen> {
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
+                                    GstToggleButton(
+                                      isEnabled: _isGstEnabled,
+                                      onChanged: (value) {
+                                        setState(() => _isGstEnabled = value);
+                                      },
+                                    ),
+                                    const SizedBox(width: 6),
                                     Flexible(
                                       child: TextButton.icon(
                                           onPressed: _resetVoicePage,
@@ -1404,10 +1453,10 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen> {
                             ])),
 
                     // Column Headers
-                    const Padding(
+                    Padding(
                         padding:
                             EdgeInsets.symmetric(horizontal: 20, vertical: 5),
-                        child: Row(children: [
+                        child: _buildBillTableRow(Row(children: [
                           Expanded(
                               flex: 4,
                               child: Text("Item",
@@ -1431,6 +1480,40 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen> {
                                       fontWeight: FontWeight.bold,
                                       fontSize: 12,
                                       color: Colors.grey))),
+                          if (_isGstEnabled) ...[
+                            Expanded(
+                                flex: 2,
+                                child: Text("CGST",
+                                    textAlign: TextAlign.right,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                        color: Colors.grey))),
+                            Expanded(
+                                flex: 2,
+                                child: Text("SGST",
+                                    textAlign: TextAlign.right,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                        color: Colors.grey))),
+                            Expanded(
+                                flex: 2,
+                                child: Text("GST %",
+                                    textAlign: TextAlign.right,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                        color: Colors.grey))),
+                            Expanded(
+                                flex: 3,
+                                child: Text("Total GST",
+                                    textAlign: TextAlign.right,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                        color: Colors.grey))),
+                          ],
                           Expanded(
                               flex: 2,
                               child: Text("Total",
@@ -1439,7 +1522,7 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen> {
                                       fontWeight: FontWeight.bold,
                                       fontSize: 12,
                                       color: Colors.grey))),
-                        ])),
+                        ]))),
                     const Divider(height: 1),
 
                     // List Items
@@ -1493,7 +1576,7 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen> {
                                   
                                   if (_isEditMode) {
                                     // Editable Mode
-                                    return Row(children: [
+                                    return _buildBillTableRow(Row(children: [
                                       GestureDetector(
                                           onTap: () => billProvider.removeBillItem(index),
                                           child: Container(
@@ -1557,6 +1640,15 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen> {
                                             ),
                                             onChanged: (value) => _updateBillItem(index, 'rate', value, billProvider),
                                           )),
+                                      if (_isGstEnabled) ...[
+                                        const Expanded(flex: 2, child: Text('--', textAlign: TextAlign.right)),
+                                        const Expanded(flex: 2, child: Text('--', textAlign: TextAlign.right)),
+                                        Expanded(
+                                            flex: 2,
+                                            child: Text(_formatGstRate(item['gst_rate']),
+                                                textAlign: TextAlign.right)),
+                                        const Expanded(flex: 3, child: Text('--', textAlign: TextAlign.right)),
+                                      ],
                                       const SizedBox(width: 4),
                                       Expanded(
                                           flex: 2,
@@ -1565,12 +1657,12 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen> {
                                               style: const TextStyle(
                                                   fontWeight: FontWeight.bold,
                                                   fontSize: 14))),
-                                    ]);
+                                    ]));
                                   } else {
                                     // Display Mode
                                     return Padding(
                                       padding: const EdgeInsets.only(bottom: 12),
-                                      child: Row(children: [
+                                      child: _buildBillTableRow(Row(children: [
                                         GestureDetector(
                                             onTap: () => billProvider.removeBillItem(index),
                                             child: Container(
@@ -1600,14 +1692,23 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen> {
                                                 textAlign: TextAlign.right,
                                                 style:
                                                     const TextStyle(fontSize: 11))),
+                                        if (_isGstEnabled) ...[
+                                          const Expanded(flex: 2, child: Text('--', textAlign: TextAlign.right)),
+                                          const Expanded(flex: 2, child: Text('--', textAlign: TextAlign.right)),
+                                          Expanded(
+                                              flex: 2,
+                                              child: Text(_formatGstRate(item['gst_rate']),
+                                                  textAlign: TextAlign.right)),
+                                          const Expanded(flex: 3, child: Text('--', textAlign: TextAlign.right)),
+                                        ],
                                         Expanded(
                                             flex: 2,
                                             child: Text("₹${_formatNumber((item['total'] as num).toDouble())}",
                                                 textAlign: TextAlign.right,
                                                 style: const TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 14))),
-                                      ]),
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 14))),
+                                      ])),
                                     );
                                   }
                                 })),
@@ -1626,7 +1727,7 @@ class _VoiceAssistantScreenState extends State<VoiceAssistantScreen> {
                                 width: 110,
                                 height: 44,
                                 child: ElevatedButton.icon(
-                                    onPressed: _finalizeBill,
+                                    onPressed: _handlePrintPressed,
                                     icon: const Icon(Icons.print,
                                         color: Colors.white, size: 16),
                                     label: const Text("PRINT",

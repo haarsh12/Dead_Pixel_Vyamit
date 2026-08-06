@@ -7,7 +7,7 @@ class ApiConfig {
 
   // 🧪 LOCAL DEVELOPMENT URLs (only used when uncommenting local dev code below)
   static const String _emulatorUrl = "http://10.0.2.2:8000";
-  static const String _realDeviceUrl = "http://192.168.110.207:8000";  // Replace with your laptop's local IP for local testing
+  static const String _realDeviceUrl = "http://10.231.114.205:8000";  // Replace with your laptop's local IP for local testing
   static const String _localUrl = "http://localhost:8000";
 
   static String get baseUrl {

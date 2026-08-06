@@ -7,6 +7,7 @@ class InventoryProvider with ChangeNotifier {
 
   // Start with empty inventory
   List<Item> _items = [];
+  final Map<String, double?> _localGstRates = {};
   
   // Predefined categories that persist even when empty
   List<String> _categories = [
@@ -27,6 +28,16 @@ class InventoryProvider with ChangeNotifier {
   List<String> get categories => _categories;
   bool get isLoading => _isLoading;
   String get selectedCategory => _selectedCategory;
+
+  double? gstRateForItemName(String name) {
+    final normalizedName = name.trim().toLowerCase();
+    for (final item in _items) {
+      if (item.names.any((alias) => alias.trim().toLowerCase() == normalizedName)) {
+        return item.gstRate;
+      }
+    }
+    return null;
+  }
 
   // Filter Logic for Display
   List<Item> getFilteredItems(String searchQuery) {
@@ -95,7 +106,10 @@ class InventoryProvider with ChangeNotifier {
       final backendItems = await _service.getItems();
       print("✅ Fetched ${backendItems.length} items from backend");
 
-      _items = backendItems;
+      _items = backendItems.map((backendItem) {
+        final gstRate = _localGstRates[backendItem.id] ?? backendItem.gstRate;
+        return backendItem.copyWith(gstRate: gstRate);
+      }).toList();
       
       // Add any custom categories from backend items that aren't in predefined list
       for (var item in backendItems) {
@@ -118,7 +132,9 @@ class InventoryProvider with ChangeNotifier {
       print("   Category: ${newItem.category}, Unit: ${newItem.unit}");
 
       // Call backend (POST endpoint handles upsert based on ID)
-      final savedItem = await _service.addItem(newItem);
+      final backendSavedItem = await _service.addItem(newItem);
+      final savedItem = backendSavedItem.copyWith(gstRate: newItem.gstRate);
+      _localGstRates[savedItem.id] = newItem.gstRate;
       print("✅ Backend saved item with ID: ${savedItem.id}");
 
       // Update local state - find by ID
@@ -153,6 +169,7 @@ class InventoryProvider with ChangeNotifier {
       
       // Remove from local list
       _items.removeWhere((i) => i.id == id);
+      _localGstRates.remove(id);
       
       notifyListeners();
       print("✅ Deleted from backend");

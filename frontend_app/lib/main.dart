@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/inventory_provider.dart';
 import 'providers/bill_provider.dart';
+import 'providers/gst_profile_provider.dart';
 
 // Import Screens
 import 'screens/splash_screen.dart';
@@ -36,6 +37,7 @@ class MyKiranaApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => InventoryProvider()),
         ChangeNotifierProvider(create: (_) => BillProvider()),
+        ChangeNotifierProvider(create: (_) => GstProfileProvider()),
       ],
       child: MaterialApp(
         title: 'My Kirana',

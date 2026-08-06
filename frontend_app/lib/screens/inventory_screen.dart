@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../core/theme.dart';
 import '../models/item.dart';
 import '../providers/inventory_provider.dart';
+import '../widgets/gst_rate_selector.dart';
 import 'voice_inventory_screen.dart';
 
 class InventoryScreen extends StatefulWidget {
@@ -238,6 +239,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
         TextEditingController(text: isEdit ? item.price.toString() : '');
     final customUnitCtrl = TextEditingController(text: isEdit ? item.unit : '');
     final customCategoryCtrl = TextEditingController();
+    final customGstRateCtrl = TextEditingController();
 
     String selectedCategory = isEdit
         ? item.category
@@ -251,12 +253,16 @@ class _InventoryScreenState extends State<InventoryScreen> {
     String selectedUnit = 'kg';
     bool isCustomUnit = false;
     bool isCustomCategory = false;
+    double? selectedGstRate = isEdit ? item.gstRate : null;
+    bool isCustomGstRate = selectedGstRate != null &&
+        !const [5.0, 12.0, 18.0, 28.0].contains(selectedGstRate);
     
     // Validation error states
     bool showName1Error = false;
     bool showPriceError = false;
     bool showUnitError = false;
     bool showCategoryError = false;
+    bool showCustomGstRateError = false;
     
     if (isEdit) {
       if (_standardUnits.contains(item.unit) && item.unit != 'Other') {
@@ -412,6 +418,20 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 ]),
                 const SizedBox(height: 15),
 
+                GstRateSelector(
+                  initialRate: item?.gstRate,
+                  customRateController: customGstRateCtrl,
+                  showCustomRateError: showCustomGstRateError,
+                  onSelectionChanged: (rate, isCustom) {
+                    setDialogState(() {
+                      selectedGstRate = rate;
+                      isCustomGstRate = isCustom;
+                      showCustomGstRateError = false;
+                    });
+                  },
+                ),
+                const SizedBox(height: 15),
+
                 // EXTRA NAME FIELDS (2, 3, 4) - Optional
                 const Text("Other Names / Aliases (Optional)",
                     style:
@@ -484,6 +504,16 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     setDialogState(() => showCategoryError = true);
                     hasError = true;
                   }
+
+                  if (isCustomGstRate) {
+                    final customGstRate = double.tryParse(customGstRateCtrl.text);
+                    if (customGstRate == null || customGstRate < 0) {
+                      setDialogState(() => showCustomGstRateError = true);
+                      hasError = true;
+                    } else {
+                      selectedGstRate = customGstRate;
+                    }
+                  }
                   
                   if (hasError) return;
 
@@ -513,6 +543,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     price: double.tryParse(priceCtrl.text) ?? 0,
                     unit: finalUnit,
                     category: finalCategory,
+                    gstRate: selectedGstRate,
                   );
 
                   // Save the item

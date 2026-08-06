@@ -4,6 +4,7 @@ class Item {
   final double price;
   final String unit; // "kg", "pkt"
   final String category; // "Anaaj", "Masale"
+  final double? gstRate;
 
   Item({
     required this.id,
@@ -11,6 +12,7 @@ class Item {
     required this.price,
     required this.unit,
     required this.category,
+    this.gstRate,
   });
 
   // Convert JSON from Backend -> Flutter Object
@@ -23,6 +25,18 @@ class Item {
       price: (json['price'] as num?)?.toDouble() ?? 0.0,
       unit: json['unit'] ?? 'kg',
       category: json['category'] ?? 'General',
+      gstRate: (json['gst_rate'] as num?)?.toDouble(),
+    );
+  }
+
+  Item copyWith({double? gstRate}) {
+    return Item(
+      id: id,
+      names: names,
+      price: price,
+      unit: unit,
+      category: category,
+      gstRate: gstRate ?? this.gstRate,
     );
   }
 

@@ -6,7 +6,9 @@ import '../core/shop_categories.dart';
 import '../models/shop_details.dart';
 import '../providers/auth_provider.dart';
 import '../providers/bill_provider.dart';
+import '../providers/gst_profile_provider.dart';
 import '../widgets/bill_receipt_widget.dart';
+import '../widgets/gst_billing_section.dart';
 import 'auth_selection_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -369,6 +371,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                             () => _appLanguage = val))),
                               ])
                             ]))),
+                    const SizedBox(height: 30),
+
+                    Consumer<GstProfileProvider>(
+                      builder: (context, gstProvider, child) {
+                        return GstBillingSection(
+                          isEnabled: gstProvider.isEnabled,
+                          details: gstProvider.details,
+                          onEnabledChanged: gstProvider.setEnabled,
+                          onSave: (details) {
+                            gstProvider.saveDetails(details);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('GST details saved successfully.'),
+                                backgroundColor: AppColors.primaryGreen,
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
                     const SizedBox(height: 30),
 
                     // 4. BILL SETTINGS
