@@ -25,6 +25,13 @@ def create_bill(
 ):
     """Save a new bill and create sale items for analytics"""
     try:
+        for item in bill_data.items:
+            expected_line_total = round(item.quantity * item.price, 2)
+            if abs(expected_line_total - item.total) > 0.01:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"total for '{item.name}' must equal quantity multiplied by price",
+                )
         calculated_total = round(sum(item.total for item in bill_data.items), 2)
         if abs(calculated_total - bill_data.total_amount) > 0.01:
             raise HTTPException(

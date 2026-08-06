@@ -1,4 +1,4 @@
-"""API routes package"""
-from . import auth, items, analytics, rag, sms
+"""API routes package."""
+from . import analytics, auth, items, rag, sms, voice, voice_inventory
 
-__all__ = ["auth", "items", "analytics", "rag", "sms"]
+__all__ = ["analytics", "auth", "items", "rag", "sms", "voice", "voice_inventory"]

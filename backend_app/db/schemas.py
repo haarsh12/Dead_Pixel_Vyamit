@@ -10,6 +10,16 @@ from datetime import datetime
 
 # ---- Authentication Schemas ----
 
+def _normalise_indian_phone(value: str) -> str:
+    """Validate common Indian mobile-number input and return E.164 form."""
+    cleaned = re.sub(r"[\s()\-]", "", value)
+    digits = cleaned[1:] if cleaned.startswith("+") else cleaned
+    if digits.startswith("91") and len(digits) == 12:
+        digits = digits[2:]
+    if not re.fullmatch(r"[6-9]\d{9}", digits):
+        raise ValueError("phone_number must be a valid Indian 10-digit mobile number")
+    return f"+91{digits}"
+
 class OTPRequest(BaseModel):
     """Request OTP for login/register"""
     phone_number: str = Field(..., min_length=10, max_length=15)
@@ -18,14 +28,7 @@ class OTPRequest(BaseModel):
     @field_validator("phone_number")
     @classmethod
     def validate_phone_number(cls, value: str) -> str:
-        """Accept Indian mobile input and store it in a stable E.164 format."""
-        cleaned = re.sub(r"[\s()\-]", "", value)
-        digits = cleaned[1:] if cleaned.startswith("+") else cleaned
-        if digits.startswith("91") and len(digits) == 12:
-            digits = digits[2:]
-        if not re.fullmatch(r"[6-9]\d{9}", digits):
-            raise ValueError("phone_number must be a valid Indian 10-digit mobile number")
-        return f"+91{digits}"
+        return _normalise_indian_phone(value)
 
 
 class VerifyOTPRequest(BaseModel):
@@ -39,7 +42,10 @@ class VerifyOTPRequest(BaseModel):
     address: Optional[str] = None
     shop_category: Optional[str] = None
 
-    _validate_phone_number = field_validator("phone_number")(OTPRequest.validate_phone_number)
+    @field_validator("phone_number")
+    @classmethod
+    def validate_phone_number(cls, value: str) -> str:
+        return _normalise_indian_phone(value)
 
 
 class TokenResponse(BaseModel):
@@ -70,15 +76,15 @@ class UpdateProfileRequest(BaseModel):
 
 class ItemBase(BaseModel):
     """Base item schema"""
-    names: List[str] = Field(..., min_items=1)
-    price: float = Field(..., ge=0)
-    unit: str
-    category: Optional[str] = "General"
+    names: List[str] = Field(..., min_length=1, max_length=20)
+    price: float = Field(..., ge=0, le=10_000_000)
+    unit: str = Field(..., min_length=1, max_length=30)
+    category: str = Field(default="General", min_length=1, max_length=60)
 
 
 class ItemCreate(ItemBase):
     """Create new item"""
-    id: str  # master_id from frontend
+    id: str = Field(..., min_length=1, max_length=100)  # master_id from frontend
 
 
 class ItemUpdate(ItemBase):

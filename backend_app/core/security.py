@@ -15,8 +15,10 @@ SECRET_KEY = os.getenv("SECRET_KEY", _DEFAULT_DEV_SECRET)
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
 
-# Security check for production
-if os.getenv("RENDER") and SECRET_KEY == _DEFAULT_DEV_SECRET:
+# Security check for production. Render is retained for compatibility; APP_ENV
+# lets the same deployment rule work on other hosts as well.
+_production_environment = os.getenv("APP_ENV", "").lower() in {"prod", "production"}
+if (os.getenv("RENDER") or _production_environment) and SECRET_KEY == _DEFAULT_DEV_SECRET:
     raise RuntimeError(
         "SECRET_KEY must be set to a secure random value in production. "
         "Generate with: python -c 'import secrets; print(secrets.token_urlsafe(32))'"

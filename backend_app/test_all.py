@@ -107,6 +107,7 @@ def main() -> int:
         log("Default database checks will fail until DATABASE_URL is configured.", "WARNING")
 
     suites = [
+        ("Frontend contracts", "test_contracts.py", "offline Flutter-to-API contract checks", None),
         ("Database", "test_database.py", "database and pgvector integration", None),
         ("Services", "test_services.py", "OTP, security, and configuration", None),
         ("RAG pipeline", "test_rag_pipeline.py", "local prompt/retrieval/error contracts", None),

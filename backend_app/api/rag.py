@@ -134,15 +134,14 @@ async def rag_query(
         
     except HTTPException:
         raise
-    except Exception as e:
-        logger.error(f"RAG query failed: {e}")
+    except Exception:
+        logger.exception("RAG query failed for user=%s", user_id)
         return {
             "type": "ERROR",
             "items": [],
             "msg": "Sorry, I encountered an error processing your request. Please try again.",
             "should_stop": False,
             "metadata": {
-                "error": str(e),
                 "timings": {
                     "total": round(time.time() - start_time, 3)
                 }

@@ -1,40 +1,38 @@
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 
 class ApiConfig {
-  // 🚀 PRODUCTION - Render Backend
-  static const String _productionUrl = "    ";
+  /// Configure the deployed backend at build time, for example:
+  /// flutter build apk --dart-define=API_BASE_URL=https://api.example.com
+  static const String _configuredUrl = String.fromEnvironment('API_BASE_URL');
 
-  // 🧪 LOCAL DEVELOPMENT URLs (only used when uncommenting local dev code below)
-  static const String _emulatorUrl = "http://10.0.2.2:8000";
-  static const String _realDeviceUrl = "http://192.168.110.207:8000";  // Replace with your laptop's local IP for local testing
-  static const String _localUrl = "http://localhost:8000";
+  // Local development defaults. A physical Android device should use
+  // API_BASE_URL with the computer's reachable LAN address.
+  static const String _emulatorUrl = 'http://10.0.2.2:8000';
+  static const String _localUrl = 'http://localhost:8000';
 
   static String get baseUrl {
-    // 🧪 DEVELOPMENT MODE - Local Backend
+    final configured = _configuredUrl.trim();
+    if (configured.isNotEmpty) {
+      return configured.replaceFirst(RegExp(r'/+$'), '');
+    }
+
     if (kReleaseMode) {
-      return _productionUrl;  // Use production in release mode
+      throw StateError('API_BASE_URL must be supplied for a release build.');
     }
 
-    if (Platform.isAndroid) {
-      return _realDeviceUrl;  // Real phone connected via USB
-      // return _emulatorUrl;  // Uncomment for emulator
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      return _emulatorUrl;
     }
-
-    return _localUrl;  // Web/Windows
-    
-    // 🚀 PRODUCTION MODE - Uncomment below for production:
-    /*
-    return _productionUrl;
-    */
+    return _localUrl;
   }
 
-  /// Convert http/https baseUrl to ws/wss wsUrl for continuous WebSocket connection
+  /// Convert the HTTP API origin to its matching WebSocket origin.
   static String get wsUrl {
     final base = baseUrl;
     if (base.startsWith('https://')) {
       return base.replaceFirst('https://', 'wss://');
-    } else if (base.startsWith('http://')) {
+    }
+    if (base.startsWith('http://')) {
       return base.replaceFirst('http://', 'ws://');
     }
     return 'ws://$base';

@@ -24,6 +24,14 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def _find_user_by_phone(session: Session, canonical_phone: str):
+    """Find users saved by either the new or legacy phone representation."""
+    digits = canonical_phone.removeprefix("+91")
+    return session.exec(
+        select(User).where(User.phone_number.in_((canonical_phone, digits, f"91{digits}")))
+    ).first()
+
+
 @router.post("/send-otp", status_code=status.HTTP_200_OK)
 def send_otp(
     payload: OTPRequest,
@@ -41,8 +49,7 @@ def send_otp(
         otp_rate_limiter.check(request.client.host if request.client else "unknown", phone)
         
         # Check if user exists
-        statement = select(User).where(User.phone_number == phone)
-        user = session.exec(statement).first()
+        user = _find_user_by_phone(session, phone)
         
         if payload.is_login and not user:
             raise HTTPException(
@@ -105,8 +112,7 @@ def verify_otp(
             )
         
         # Check if user exists
-        statement = select(User).where(User.phone_number == phone)
-        user = session.exec(statement).first()
+        user = _find_user_by_phone(session, phone)
         
         is_new_user = False
         
