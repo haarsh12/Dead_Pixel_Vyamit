@@ -2,13 +2,14 @@
 
 from typing import Any, Dict, List
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlmodel import Session, select
 
 from core.security import get_current_user
 from db.database import get_session
-from db.models import Item
+from core.shop_categories import stored_category
+from db.models import Item, User
 from services.voice_inventory_service import voice_inventory_service
 
 
@@ -31,7 +32,16 @@ def parse_voice_inventory(
     session: Session = Depends(get_session),
 ) -> Dict[str, Any]:
     """Parse a transcription while only considering the authenticated user's stock."""
-    items = session.exec(select(Item).where(Item.owner_id == user_id)).all()
+    user = session.get(User, user_id)
+    if user is None or not user.is_active:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is unavailable")
+    shop_category = stored_category(user.shop_category)
+    items = session.exec(
+        select(Item).where(
+            Item.owner_id == user_id,
+            Item.shop_category == shop_category,
+        )
+    ).all()
     existing_items: List[Dict[str, Any]] = []
     categories = set()
     for item in items:

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/item.dart';
 import '../services/inventory_service.dart';
+import '../features/category_experience/category_experience.dart';
+import '../core/shop_categories.dart';
 
 class InventoryProvider with ChangeNotifier {
   final InventoryService _service = InventoryService();
@@ -8,25 +10,39 @@ class InventoryProvider with ChangeNotifier {
   // Start with empty inventory
   List<Item> _items = [];
   
-  // Predefined categories that persist even when empty
-  List<String> _categories = [
-    'Anaaj',
-    'Atta',
-    'Dal',
-    'Masale',
-    'Tel',
-    'Dry Fruits',
-    'Upvas',
-    'Other'
-  ];
+  // Product groups for the currently active shop category. These are not the
+  // same as the profile's shop category / server-side inventory namespace.
+  String _shopCategory = kDefaultShopCategory;
+  List<String> _categories = List.from(
+    CategoryExperience.forCategory(kDefaultShopCategory).inventoryGroups,
+  );
 
   bool _isLoading = false;
-  String _selectedCategory = 'Anaaj';
+  String _selectedCategory = 'Daily Essentials';
+  int _fetchVersion = 0;
 
   List<Item> get items => _items;
   List<String> get categories => _categories;
   bool get isLoading => _isLoading;
   String get selectedCategory => _selectedCategory;
+  String get shopCategory => _shopCategory;
+
+  /// Reset local inventory immediately when the profile category changes,
+  /// then reload through the API. This prevents old items flashing while the
+  /// network request for the new namespace is in flight.
+  Future<void> loadForShopCategory(String category) async {
+    final canonicalCategory = canonicalShopCategory(category);
+    if (_shopCategory != canonicalCategory) {
+      _shopCategory = canonicalCategory;
+      _categories = List.from(
+        CategoryExperience.forCategory(canonicalCategory).inventoryGroups,
+      );
+      _selectedCategory = _categories.first;
+      _items = [];
+      notifyListeners();
+    }
+    await fetchItems(expectedShopCategory: canonicalCategory);
+  }
 
   // Filter Logic for Display
   List<Item> getFilteredItems(String searchQuery) {
@@ -86,7 +102,11 @@ class InventoryProvider with ChangeNotifier {
   }
 
   // Fetch items from backend
-  Future<void> fetchItems() async {
+  Future<void> fetchItems({String? expectedShopCategory}) async {
+    final requestedCategory = canonicalShopCategory(
+      expectedShopCategory ?? _shopCategory,
+    );
+    final requestVersion = ++_fetchVersion;
     _isLoading = true;
     notifyListeners();
 
@@ -95,10 +115,25 @@ class InventoryProvider with ChangeNotifier {
       final backendItems = await _service.getItems();
       print("✅ Fetched ${backendItems.length} items from backend");
 
-      _items = backendItems;
+      // A profile switch may have started a new load while this request was
+      // in flight. Do not paint an old category's response into the newly
+      // selected category, even momentarily.
+      if (requestVersion != _fetchVersion || requestedCategory != _shopCategory) {
+        return;
+      }
+
+      // The API returns the server-owned namespace with every item. Discard a
+      // malformed or stale response instead of risking cross-category data.
+      _items = backendItems
+          .where(
+            (item) =>
+                item.shopCategory != null &&
+                canonicalShopCategory(item.shopCategory) == requestedCategory,
+          )
+          .toList();
       
       // Add any custom categories from backend items that aren't in predefined list
-      for (var item in backendItems) {
+      for (var item in _items) {
         if (!_categories.contains(item.category)) {
           _categories.add(item.category);
         }
@@ -107,18 +142,26 @@ class InventoryProvider with ChangeNotifier {
       print("❌ Error fetching items: $e");
     }
 
-    _isLoading = false;
-    notifyListeners();
+    if (requestVersion == _fetchVersion && requestedCategory == _shopCategory) {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   // Add or Update item
   Future<void> addItem(Item newItem) async {
+    final requestedCategory = _shopCategory;
     try {
       print("💾 Saving item: ${newItem.id} (${newItem.names[0]}) - ₹${newItem.price}");
       print("   Category: ${newItem.category}, Unit: ${newItem.unit}");
 
       // Call backend (POST endpoint handles upsert based on ID)
       final savedItem = await _service.addItem(newItem);
+      if (requestedCategory != _shopCategory ||
+          savedItem.shopCategory == null ||
+          canonicalShopCategory(savedItem.shopCategory) != requestedCategory) {
+        return;
+      }
       print("✅ Backend saved item with ID: ${savedItem.id}");
 
       // Update local state - find by ID
@@ -139,17 +182,21 @@ class InventoryProvider with ChangeNotifier {
       notifyListeners();
     } catch (e) {
       print("❌ Save Error: $e");
-      await fetchItems();
+      await fetchItems(expectedShopCategory: requestedCategory);
     }
   }
 
   // Delete item
   Future<void> deleteItem(String id) async {
+    final requestedCategory = _shopCategory;
     try {
       print("🗑️ Deleting item: $id");
 
       // Delete from backend
       await _service.deleteItem(id);
+      if (requestedCategory != _shopCategory) {
+        return;
+      }
       
       // Remove from local list
       _items.removeWhere((i) => i.id == id);

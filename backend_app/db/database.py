@@ -3,7 +3,7 @@ Database Connection and Session Management
 Includes pgvector extension setup
 """
 from sqlmodel import SQLModel, create_engine, Session
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 from dotenv import load_dotenv
 import os
 from typing import Generator, Optional
@@ -68,12 +68,139 @@ def create_db_and_tables():
         # Enable pgvector first
         enable_pgvector()
         
-        # Create tables
+        # Upgrade an existing items table before SQLModel creates the new
+        # category-scope indexes. New installations have no items table yet,
+        # so the helper simply returns and SQLModel creates it from the model.
+        _ensure_category_scoped_inventory_schema()
+        _ensure_category_scoped_sales_context_schema()
         SQLModel.metadata.create_all(engine)
         print("[OK] Database tables created successfully")
     except Exception as e:
         print(f"[ERROR] Database initialization failed: {e}")
         raise
+
+
+def _ensure_category_scoped_inventory_schema() -> None:
+    """Add the inventory namespace to pre-existing PostgreSQL installations.
+
+    The production migration is also checked in under ``db/migrations``.  This
+    narrow runtime guard means a deployed instance is not left with code that
+    queries a column its older table does not have.  It only backfills when the
+    column is first introduced; it never reassigns an existing scope after a
+    shop changes category.
+    """
+    if engine is None or engine.dialect.name != "postgresql":
+        return
+    inspector = inspect(engine)
+    if "items" not in inspector.get_table_names():
+        return
+    existing_columns = {column["name"] for column in inspector.get_columns("items")}
+    if "shop_category" in existing_columns:
+        return
+
+    with engine.begin() as connection:
+        connection.execute(text("ALTER TABLE items ADD COLUMN shop_category VARCHAR(60)"))
+        connection.execute(
+            text(
+                """
+                UPDATE users
+                SET shop_category = CASE LOWER(TRIM(COALESCE(shop_category, '')))
+                    WHEN 'kirana' THEN 'Kirana'
+                    WHEN 'stationery' THEN 'Stationery'
+                    WHEN 'stationary' THEN 'Stationery'
+                    WHEN 'staationary' THEN 'Stationery'
+                    WHEN 'pharmacy' THEN 'Pharmacy'
+                    WHEN 'medical' THEN 'Pharmacy'
+                    WHEN 'doctor prescription' THEN 'Doctor Prescription'
+                    WHEN 'doctor' THEN 'Doctor Prescription'
+                    WHEN 'prescription' THEN 'Doctor Prescription'
+                    WHEN 'dairy' THEN 'Dairy'
+                    WHEN 'hardware' THEN 'Hardware'
+                    WHEN 'fast food' THEN 'Fast Food'
+                    WHEN 'fastfood' THEN 'Fast Food'
+                    WHEN 'restaurant' THEN 'Fast Food'
+                    WHEN 'general' THEN 'General'
+                    WHEN 'clothing' THEN 'Clothing'
+                    WHEN 'other' THEN 'Other'
+                    ELSE 'General'
+                END
+                """
+            )
+        )
+        connection.execute(
+            text(
+                """
+                UPDATE items AS item
+                SET shop_category = COALESCE(NULLIF(owner.shop_category, ''), 'General')
+                FROM users AS owner
+                WHERE item.owner_id = owner.id
+                """
+            )
+        )
+        connection.execute(text("UPDATE items SET shop_category = 'General' WHERE shop_category IS NULL"))
+        connection.execute(text("ALTER TABLE items ALTER COLUMN shop_category SET DEFAULT 'General'"))
+        connection.execute(text("ALTER TABLE items ALTER COLUMN shop_category SET NOT NULL"))
+        connection.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_items_owner_shop_category "
+                "ON items (owner_id, shop_category)"
+            )
+        )
+        connection.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_items_owner_shop_category_master "
+                "ON items (owner_id, shop_category, master_id)"
+            )
+        )
+    print("[OK] Category-scoped inventory migration applied")
+
+
+def _ensure_category_scoped_sales_context_schema() -> None:
+    """Add category snapshots to existing bills and sale items for RAG safety.
+
+    Legacy records are assigned to General instead of being guessed from the
+    user's current profile. Dashboard and bill-history endpoints remain shared
+    per user; only the AI analytics context filters these immutable snapshots.
+    """
+    if engine is None or engine.dialect.name != "postgresql":
+        return
+
+    inspector = inspect(engine)
+    table_names = set(inspector.get_table_names())
+    if not {"bills", "sale_items"}.issubset(table_names):
+        return
+
+    bill_columns = {column["name"] for column in inspector.get_columns("bills")}
+    sale_item_columns = {
+        column["name"] for column in inspector.get_columns("sale_items")
+    }
+    if "shop_category" in bill_columns and "shop_category" in sale_item_columns:
+        return
+
+    with engine.begin() as connection:
+        if "shop_category" not in bill_columns:
+            connection.execute(text("ALTER TABLE bills ADD COLUMN shop_category VARCHAR(60)"))
+            connection.execute(text("UPDATE bills SET shop_category = 'General' WHERE shop_category IS NULL"))
+            connection.execute(text("ALTER TABLE bills ALTER COLUMN shop_category SET DEFAULT 'General'"))
+            connection.execute(text("ALTER TABLE bills ALTER COLUMN shop_category SET NOT NULL"))
+            connection.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS idx_bills_owner_shop_category_date "
+                    "ON bills (owner_id, shop_category, bill_date)"
+                )
+            )
+        if "shop_category" not in sale_item_columns:
+            connection.execute(text("ALTER TABLE sale_items ADD COLUMN shop_category VARCHAR(60)"))
+            connection.execute(text("UPDATE sale_items SET shop_category = 'General' WHERE shop_category IS NULL"))
+            connection.execute(text("ALTER TABLE sale_items ALTER COLUMN shop_category SET DEFAULT 'General'"))
+            connection.execute(text("ALTER TABLE sale_items ALTER COLUMN shop_category SET NOT NULL"))
+            connection.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS idx_sale_items_owner_shop_category_date "
+                    "ON sale_items (owner_id, shop_category, sale_date)"
+                )
+            )
+    print("[OK] Category-scoped sales context migration applied")
 
 
 def get_session() -> Generator[Session, None, None]:

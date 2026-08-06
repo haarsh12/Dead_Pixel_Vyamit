@@ -273,6 +273,7 @@ def test_end_to_end_performance():
             items = retrieval.retrieve_items(
                 query_embedding=query_embedding,
                 user_id=user_id,
+                shop_category=user.shop_category or "General",
                 top_k=5
             )
             

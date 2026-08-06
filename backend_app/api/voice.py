@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 from sqlmodel import Session, select
 
 from core.security import get_current_user, verify_token
+from core.shop_categories import stored_category
 from db.database import database_is_configured, engine, get_session
 from db.models import Item, User
 from services.voice_service import voice_service
@@ -32,7 +33,13 @@ def _context_from_session(session: Session, user_id: int) -> Tuple[List[Dict[str
     user = session.get(User, user_id)
     if user is None or not user.is_active:
         raise LookupError("Account is unavailable")
-    items = session.exec(select(Item).where(Item.owner_id == user_id)).all()
+    shop_category = stored_category(user.shop_category)
+    items = session.exec(
+        select(Item).where(
+            Item.owner_id == user_id,
+            Item.shop_category == shop_category,
+        )
+    ).all()
     inventory = [
         {
             "master_id": item.master_id,
@@ -43,7 +50,7 @@ def _context_from_session(session: Session, user_id: int) -> Tuple[List[Dict[str
         }
         for item in items
     ]
-    return inventory, user.shop_category or "General"
+    return inventory, shop_category
 
 
 def _load_context(user_id: int) -> Tuple[List[Dict[str, Any]], str]:

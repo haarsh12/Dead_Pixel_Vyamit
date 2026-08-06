@@ -8,6 +8,7 @@ from typing import Dict, Any
 import logging
 import time
 from db.database import get_session, engine
+from core.shop_categories import stored_category
 from db.models import User
 from db.schemas import VoiceQueryRequest, VoiceQueryResponse
 from core.security import get_current_user
@@ -49,7 +50,7 @@ async def rag_query(
                 detail="User not found"
             )
         
-        shop_category = user.shop_category or "General"
+        shop_category = stored_category(user.shop_category)
         
         # Step 1: Generate embedding
         embedding_start = time.time()
@@ -63,8 +64,13 @@ async def rag_query(
         context = await retrieval.retrieve_all_parallel(
             query_embedding=query_embedding,
             user_id=user_id,
+            shop_category=shop_category,
             include_analytics=request.include_analytics,
-            include_customers=request.include_customers
+            # Customer profiles are shared across a user and do not carry an
+            # immutable shop-category snapshot. Do not inject them into a
+            # category-specific AI prompt until the clinical/customer model is
+            # explicitly separated by category as well.
+            include_customers=False,
         )
         
         retrieval_time = time.time() - retrieval_start
@@ -180,6 +186,7 @@ async def rag_query_simple(
         items = retrieval.retrieve_items(
             query_embedding=query_embedding,
             user_id=user_id,
+            shop_category=stored_category(user.shop_category),
             top_k=5
         )
         
@@ -188,7 +195,7 @@ async def rag_query_simple(
         prompt = prompt_builder.build_simple_prompt(
             user_query=request.query,
             items=items,
-            shop_category=user.shop_category or "General"
+            shop_category=stored_category(user.shop_category)
         )
         
         # Get response

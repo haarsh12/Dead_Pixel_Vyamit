@@ -91,18 +91,27 @@ def test_security_module() -> bool:
 
 def test_shop_categories() -> bool:
     try:
-        from core.shop_categories import validate_category
+        from core.shop_categories import normalise_category, validate_category
 
         checks = {
             "Kirana": "Kirana",
             "kirana": "Kirana",
             "Dairy": "Dairy",
-            "InvalidCategory": "General",
-            "": "General",
+            "stationary": "Stationery",
+            "Medical": "Pharmacy",
         }
         if any(validate_category(value) != expected for value, expected in checks.items()):
             log("Shop category validation returned an unexpected value.", "ERROR")
             return False
+        if normalise_category("InvalidCategory") is not None:
+            log("Invalid category unexpectedly received a namespace.", "ERROR")
+            return False
+        try:
+            validate_category("")
+            log("Blank category unexpectedly passed validation.", "ERROR")
+            return False
+        except ValueError:
+            pass
         log("Shop category validation works", "SUCCESS")
         return True
     except Exception as exc:

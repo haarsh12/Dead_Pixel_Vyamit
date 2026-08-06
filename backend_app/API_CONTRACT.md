@@ -8,8 +8,8 @@ non-public route requires `Authorization: Bearer <access_token>`.
 | Send OTP | `POST /auth/send-otp` | Implemented; validates Indian mobile input and rate-limits requests. |
 | Verify OTP | `POST /auth/verify-otp` | Implemented. |
 | Save profile | `PUT /auth/update-profile` | Compatibility route; `/auth/profile` remains the documented route. |
-| List/create inventory | `GET` / `POST /items/` | Implemented. |
-| Update/delete inventory | `PUT` / `DELETE /items/{id}/` | Implemented with the Flutter trailing slash and owner isolation. |
+| List/create inventory | `GET` / `POST /items/` | Uses the authenticated user's active shop-category inventory scope; a client cannot choose another scope. |
+| Update/delete inventory | `PUT` / `DELETE /items/{id}/` | Uses the trailing-slash-compatible endpoints with owner and active-category isolation. |
 | Save/history/dashboard | `POST` / `GET /analytics/bills`, `GET /analytics/dashboard` | Implemented; item totals are verified and customer summaries are updated. |
 | Voice inventory | `POST /inventory/voice-parse` | Implemented; Gemini is used when configured and a deterministic parser is available otherwise. |
 | Voice HTTP fallback | `POST /voice/process` | Implemented. |
@@ -32,3 +32,15 @@ client-supplied user id.
 - `FRONTEND_URL` is a comma-separated CORS origin allow-list for browser builds.
 - Flutter release builds require
   `--dart-define=API_BASE_URL=https://your-backend.example`.
+
+## Inventory scope rule
+
+Inventory is a logical namespace per `(authenticated user, profile shop
+category)`, not a client-selectable table name. Changing a profile from
+Kirana to Hardware loads only the user's Hardware records; the Kirana records
+remain stored and become available only when that profile category is selected
+again. Voice parsing, voice billing, bulk embedding, RAG retrieval, and RAG
+analytics use the same server-side scope, so category data is never mixed in
+AI context. Bills and Dashboard totals remain user-wide as requested.
+Customer summaries are deliberately excluded from category-specific RAG
+prompts until customer records receive the same immutable category snapshot.

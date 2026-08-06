@@ -65,9 +65,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _addressCtrl = TextEditingController(text: details.address);
     _phone1Ctrl = TextEditingController(text: details.phone1);
     _phone2Ctrl = TextEditingController(text: details.phone2);
-    _selectedShopCategory = kShopCategories.contains(details.shopCategory)
-        ? details.shopCategory
-        : 'General';
+    _selectedShopCategory = canonicalShopCategory(details.shopCategory);
     
     // Load QR code from BillProvider
     final billProvider = Provider.of<BillProvider>(context, listen: false);

@@ -7,7 +7,6 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
 import '../core/theme.dart';
-import '../core/master_list.dart';
 import '../models/shop_details.dart';
 import '../models/item.dart';
 import '../providers/inventory_provider.dart';
@@ -16,11 +15,11 @@ import '../providers/bill_provider.dart';
 import '../services/printer_service.dart'; // Import the new service
 import '../services/analytics_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../core/shop_categories.dart';
+import '../features/category_experience/category_frequent_items.dart';
+import '../features/category_experience/category_page_factory.dart';
 
 // Screens
-import 'voice_assistant_screen.dart';
-import 'inventory_screen.dart';
-import 'frequent_billing_screen.dart';
 import 'history_screen.dart';
 import 'profile_screen.dart';
 
@@ -34,10 +33,12 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
   final PageController _pageController = PageController();
+  AuthProvider? _authProvider;
+  String _activeShopCategory = kDefaultShopCategory;
 
   // --- STATE 1: DATA ---
   final List<Map<String, dynamic>> _pastBills = [];
-  final List<Item> _frequentItems = List.from(masterFrequentList);
+  final Map<String, List<Item>> _frequentItemsByCategory = {};
 
   // --- STATE 2: PRINTER ---
   // Using the new Service
@@ -54,6 +55,39 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _initPrinterListener();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final nextAuthProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (_authProvider != nextAuthProvider) {
+      _authProvider?.removeListener(_onProfileChanged);
+      _authProvider = nextAuthProvider;
+      _activeShopCategory = canonicalShopCategory(
+        _authProvider?.shopDetails?.shopCategory,
+      );
+      _authProvider?.addListener(_onProfileChanged);
+    }
+  }
+
+  void _onProfileChanged() {
+    final nextCategory = canonicalShopCategory(
+      _authProvider?.shopDetails?.shopCategory,
+    );
+    if (!mounted || nextCategory == _activeShopCategory) return;
+
+    _activeShopCategory = nextCategory;
+    // Clear any old namespace immediately; InventoryScreen then loads the
+    // profile-selected scope through the authenticated API.
+    Provider.of<InventoryProvider>(context, listen: false)
+        .loadForShopCategory(nextCategory);
+    setState(() => _currentIndex = 0);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _pageController.hasClients) {
+        _pageController.jumpToPage(0);
+      }
+    });
   }
 
   void _initPrinterListener() {
@@ -75,24 +109,33 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // --- FREQUENT ITEM MANAGEMENT ---
+  List<Item> _frequentItemsFor(String category) {
+    final canonicalCategory = canonicalShopCategory(category);
+    return _frequentItemsByCategory.putIfAbsent(
+      canonicalCategory,
+      () => defaultFrequentItemsForCategory(canonicalCategory),
+    );
+  }
+
   void _addFrequentItem(Item item) {
     setState(() {
-      _frequentItems.add(item);
+      _frequentItemsFor(_activeShopCategory).add(item);
     });
   }
 
   void _editFrequentItem(Item newItem) {
     setState(() {
-      final index = _frequentItems.indexWhere((i) => i.id == newItem.id);
+      final frequentItems = _frequentItemsFor(_activeShopCategory);
+      final index = frequentItems.indexWhere((i) => i.id == newItem.id);
       if (index != -1) {
-        _frequentItems[index] = newItem;
+        frequentItems[index] = newItem;
       }
     });
   }
 
   void _deleteFrequentItem(String id) {
     setState(() {
-      _frequentItems.removeWhere((i) => i.id == id);
+      _frequentItemsFor(_activeShopCategory).removeWhere((i) => i.id == id);
     });
   }
 
@@ -377,40 +420,39 @@ class _HomeScreenState extends State<HomeScreen> {
             phone2: "",
             shopCategory: "General");
 
+    final categoryPages = CategoryPageFactory.build(
+      shopDetails: _shopDetails,
+      onBillFinalized: _printOrSaveBill,
+      isPrinterConnected: _isPrinterConnected,
+      togglePrinter: _togglePrinter,
+      frequentItems: _frequentItemsFor(_activeShopCategory),
+      onAddFrequentItem: _addFrequentItem,
+      onEditFrequentItem: _editFrequentItem,
+      onDeleteFrequentItem: _deleteFrequentItem,
+    );
+    final pages = [
+      ...categoryPages.pages,
+      if (categoryPages.showsSharedDashboard) HistoryScreen(shopDetails: _shopDetails),
+      const ProfileScreen(),
+    ];
+    final navigationItems = [
+      ...categoryPages.navigationItems,
+      if (categoryPages.showsSharedDashboard)
+        const BottomNavigationBarItem(
+          icon: Icon(Icons.dashboard_rounded),
+          label: 'Dashboard',
+        ),
+      const BottomNavigationBarItem(
+        icon: Icon(Icons.person_rounded),
+        label: 'Profile',
+      ),
+    ];
+
     return Scaffold(
       body: PageView(
         controller: _pageController,
         onPageChanged: _onPageChanged,
-        children: [
-          // 1. VOICE
-          VoiceAssistantScreen(
-            shopDetails: _shopDetails,
-            onBillFinalized: _printOrSaveBill,
-            isPrinterConnected: _isPrinterConnected,
-            togglePrinter: _togglePrinter,
-          ),
-
-          // 2. INVENTORY
-          const InventoryScreen(),
-
-          // 3. FREQUENT
-          FrequentBillingScreen(
-            shopDetails: _shopDetails,
-            frequentItems: _frequentItems,
-            onBillFinalized: _printOrSaveBill,
-            isPrinterConnected: _isPrinterConnected,
-            togglePrinter: _togglePrinter,
-            onAdd: _addFrequentItem,
-            onEdit: _editFrequentItem,
-            onDelete: _deleteFrequentItem,
-          ),
-
-          // 4. HISTORY
-          HistoryScreen(shopDetails: _shopDetails),
-
-          // 5. PROFILE
-          const ProfileScreen(),
-        ],
+        children: pages,
       ),
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
@@ -428,20 +470,16 @@ class _HomeScreenState extends State<HomeScreen> {
           unselectedItemColor: Colors.grey[400],
           showUnselectedLabels: true,
           selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
-          items: const [
-            BottomNavigationBarItem(
-                icon: Icon(Icons.mic_rounded), label: 'Voice'),
-            BottomNavigationBarItem(
-                icon: Icon(Icons.store_rounded), label: 'Dukan'),
-            BottomNavigationBarItem(
-                icon: Icon(Icons.flash_on_rounded), label: 'Frequent'),
-            BottomNavigationBarItem(
-                icon: Icon(Icons.history_rounded), label: 'History'),
-            BottomNavigationBarItem(
-                icon: Icon(Icons.person_rounded), label: 'Profile'),
-          ],
+          items: navigationItems,
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _authProvider?.removeListener(_onProfileChanged);
+    _pageController.dispose();
+    super.dispose();
   }
 }

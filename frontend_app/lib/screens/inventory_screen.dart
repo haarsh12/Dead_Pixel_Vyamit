@@ -6,7 +6,12 @@ import '../providers/inventory_provider.dart';
 import 'voice_inventory_screen.dart';
 
 class InventoryScreen extends StatefulWidget {
-  const InventoryScreen({super.key});
+  final String shopCategory;
+
+  const InventoryScreen({
+    super.key,
+    required this.shopCategory,
+  });
 
   @override
   State<InventoryScreen> createState() =>  _InventoryScreenState();
@@ -19,17 +24,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
   bool _isDeleteMode = false;
   Set<String> _selectedItemIds = {};
   bool _selectAll = false;
-
-  final List<String> _categories = [
-    'Anaaj',
-    'Atta',
-    'Dal',
-    'Masale',
-    'Tel',
-    'Dry Fruits',
-    'Upvas',
-    'Other'
-  ];
 
   // List of standard units
   final List<String> _standardUnits = [
@@ -45,8 +39,17 @@ class _InventoryScreenState extends State<InventoryScreen> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(() =>
-        Provider.of<InventoryProvider>(context, listen: false).fetchItems());
+    Future.microtask(() => Provider.of<InventoryProvider>(context, listen: false)
+        .loadForShopCategory(widget.shopCategory));
+  }
+
+  @override
+  void didUpdateWidget(covariant InventoryScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.shopCategory != widget.shopCategory) {
+      Provider.of<InventoryProvider>(context, listen: false)
+          .loadForShopCategory(widget.shopCategory);
+    }
   }
 
   void _showNotification(String message) {

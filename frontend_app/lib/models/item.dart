@@ -4,6 +4,7 @@ class Item {
   final double price;
   final String unit; // "kg", "pkt"
   final String category; // "Anaaj", "Masale"
+  final String? shopCategory; // Server-assigned inventory namespace
 
   Item({
     required this.id,
@@ -11,6 +12,7 @@ class Item {
     required this.price,
     required this.unit,
     required this.category,
+    this.shopCategory,
   });
 
   // Convert JSON from Backend -> Flutter Object
@@ -23,6 +25,7 @@ class Item {
       price: (json['price'] as num?)?.toDouble() ?? 0.0,
       unit: json['unit'] ?? 'kg',
       category: json['category'] ?? 'General',
+      shopCategory: json['shop_category'] as String?,
     );
   }
 

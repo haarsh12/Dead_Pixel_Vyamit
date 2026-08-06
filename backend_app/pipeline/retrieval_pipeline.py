@@ -23,6 +23,7 @@ class RetrievalPipeline:
         self,
         query_embedding: List[float],
         user_id: int,
+        shop_category: str,
         top_k: int = None,
         threshold: float = None
     ) -> List[Dict[str, Any]]:
@@ -32,6 +33,7 @@ class RetrievalPipeline:
         Args:
             query_embedding: Query embedding vector
             user_id: User ID for filtering
+            shop_category: Authenticated user's active inventory namespace
             top_k: Number of results (default from config)
             threshold: Similarity threshold (default from config)
         
@@ -57,6 +59,7 @@ class RetrievalPipeline:
                         1 - (embedding <=> :embedding) as similarity
                     FROM items
                     WHERE owner_id = :user_id
+                        AND shop_category = :shop_category
                         AND embedding IS NOT NULL
                         AND (1 - (embedding <=> :embedding)) > :threshold
                     ORDER BY embedding <=> :embedding
@@ -68,6 +71,7 @@ class RetrievalPipeline:
                     {
                         "embedding": str(query_embedding),
                         "user_id": user_id,
+                        "shop_category": shop_category,
                         "threshold": threshold,
                         "top_k": top_k
                     }
@@ -86,7 +90,13 @@ class RetrievalPipeline:
                     })
                 
                 duration = time.time() - start
-                logger.info(f"Retrieved {len(items)} items in {duration*1000:.2f}ms")
+                logger.info(
+                    "Retrieved %s items in %.2fms user=%s scope=%s",
+                    len(items),
+                    duration * 1000,
+                    user_id,
+                    shop_category,
+                )
                 return items
                 
         except Exception as e:
@@ -169,6 +179,7 @@ class RetrievalPipeline:
     def retrieve_analytics(
         self,
         user_id: int,
+        shop_category: str,
         days: int = None
     ) -> Optional[Dict[str, Any]]:
         """
@@ -176,6 +187,7 @@ class RetrievalPipeline:
         
         Args:
             user_id: User ID
+            shop_category: Authenticated user's active category snapshot
             days: Number of days (default from config)
         
         Returns:
@@ -196,12 +208,17 @@ class RetrievalPipeline:
                         COALESCE(AVG(total_amount), 0) as avg_bill_value
                     FROM bills
                     WHERE owner_id = :user_id
+                        AND shop_category = :shop_category
                         AND bill_date >= :cutoff_date
                 """)
                 
                 revenue_result = session.execute(
                     revenue_query,
-                    {"user_id": user_id, "cutoff_date": cutoff_date}
+                    {
+                        "user_id": user_id,
+                        "shop_category": shop_category,
+                        "cutoff_date": cutoff_date,
+                    }
                 ).first()
                 
                 # Top selling items
@@ -214,6 +231,7 @@ class RetrievalPipeline:
                         SUM(total_price) as total_revenue
                     FROM sale_items
                     WHERE owner_id = :user_id
+                        AND shop_category = :shop_category
                         AND sale_date >= :cutoff_date
                     GROUP BY item_name, item_category
                     ORDER BY total_revenue DESC
@@ -224,6 +242,7 @@ class RetrievalPipeline:
                     top_items_query,
                     {
                         "user_id": user_id,
+                        "shop_category": shop_category,
                         "cutoff_date": cutoff_date,
                         "top_count": config.analytics.top_items_count
                     }
@@ -258,6 +277,7 @@ class RetrievalPipeline:
         self,
         query_embedding: List[float],
         user_id: int,
+        shop_category: str,
         include_analytics: bool = True,
         include_customers: bool = True
     ) -> Dict[str, Any]:
@@ -267,6 +287,7 @@ class RetrievalPipeline:
         Args:
             query_embedding: Query embedding
             user_id: User ID
+            shop_category: Active inventory namespace
             include_analytics: Include analytics context
             include_customers: Include customer context
         
@@ -285,7 +306,8 @@ class RetrievalPipeline:
         tasks.append(asyncio.to_thread(
             self.retrieve_items,
             query_embedding,
-            user_id
+            user_id,
+            shop_category,
         ))
         task_map[len(tasks)-1] = "items"
         
@@ -302,7 +324,8 @@ class RetrievalPipeline:
         if include_analytics:
             tasks.append(asyncio.to_thread(
                 self.retrieve_analytics,
-                user_id
+                user_id,
+                shop_category,
             ))
             task_map[len(tasks)-1] = "analytics"
         

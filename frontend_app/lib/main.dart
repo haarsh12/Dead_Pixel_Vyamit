@@ -38,7 +38,7 @@ class MyKiranaApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => BillProvider()),
       ],
       child: MaterialApp(
-        title: 'My Kirana',
+        title: 'Vyamit AI',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           useMaterial3: true,

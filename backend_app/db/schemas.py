@@ -97,6 +97,9 @@ class ItemResponse(ItemBase):
     id: str  # master_id
     owner_id: int
     master_id: str
+    # Read-only namespace assigned from the authenticated user's profile.
+    # Clients must never choose this value in an item payload.
+    shop_category: str
     created_at: datetime
     updated_at: datetime
 

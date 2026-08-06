@@ -30,8 +30,7 @@ class AuthProvider with ChangeNotifier {
         address: data['address'] ?? "India",
         phone1: data['phone_number'] ?? "",
         phone2: data['phone2'] ?? "", // Load phone2 from storage
-        shopCategory:
-            (cat != null && kShopCategories.contains(cat)) ? cat : 'General',
+        shopCategory: canonicalShopCategory(cat),
       );
 
       print("DEBUG: Auto-login loaded phone2: ${_shopDetails?.phone2}");
@@ -72,12 +71,9 @@ class AuthProvider with ChangeNotifier {
       String finalAddress = response['address'] ?? address ?? "India";
       String finalPhone2 = response['phone2'] ?? ""; // Get phone2 from response
       int userId = response['user_id'] ?? 0;
-      String finalCategory = response['shop_category'] as String? ??
-          shopCategory ??
-          'General';
-      if (!kShopCategories.contains(finalCategory)) {
-        finalCategory = 'General';
-      }
+      final String finalCategory = canonicalShopCategory(
+        response['shop_category'] as String? ?? shopCategory,
+      );
 
       print("DEBUG: Received phone2 from backend: $finalPhone2");
       print("DEBUG: shop_category: $finalCategory");
@@ -153,11 +149,9 @@ class AuthProvider with ChangeNotifier {
       String updatedAddress = response['address'] ?? address;
       String updatedPhone2 =
           response['phone2'] ?? phone2 ?? ""; // Get phone2 from response
-      String updatedCategory = response['shop_category'] as String? ??
-          shopCategory;
-      if (!kShopCategories.contains(updatedCategory)) {
-        updatedCategory = 'General';
-      }
+      final String updatedCategory = canonicalShopCategory(
+        response['shop_category'] as String? ?? shopCategory,
+      );
 
       // Keep phone1 unchanged (it's read-only)
       String currentPhone1 = _shopDetails?.phone1 ?? "";

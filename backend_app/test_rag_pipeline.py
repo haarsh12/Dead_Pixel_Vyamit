@@ -66,6 +66,7 @@ def test_retrieval_pipeline() -> bool:
         items = RetrievalPipeline(engine).retrieve_items(
             query_embedding=[0.1] * 768,
             user_id=user.id,
+            shop_category=user.shop_category or "General",
             top_k=5,
             threshold=0.0,
         )
@@ -117,7 +118,12 @@ def test_live_rag_flow() -> bool:
             return True
 
         embedding = embedding_pipeline.generate_embedding("I need 2kg sugar")
-        items = RetrievalPipeline(engine).retrieve_items(embedding, user.id, top_k=5)
+        items = RetrievalPipeline(engine).retrieve_items(
+            embedding,
+            user.id,
+            user.shop_category or "General",
+            top_k=5,
+        )
         prompt = PromptPipeline.build_simple_prompt("I need 2kg sugar", items, user.shop_category or "General")
         response, _, model = llm_pipeline.invoke(prompt)
         if not llm_pipeline.validate_response(response) or model == "error":

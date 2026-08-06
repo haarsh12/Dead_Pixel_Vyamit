@@ -8,7 +8,8 @@ from datetime import datetime, timedelta
 import json
 import logging
 from db.database import get_session
-from db.models import Bill, SaleItem, Item
+from core.shop_categories import stored_category
+from db.models import Bill, SaleItem, Item, User
 from db.schemas import BillCreate, BillResponse
 from core.security import get_current_user
 from services.customer_service import record_customer_purchase
@@ -42,8 +43,20 @@ def create_bill(
 
         # Preserve category analytics for known inventory items instead of
         # assigning every sale to the catch-all General category.
+        user = session.get(User, user_id)
+        if user is None or not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Account is unavailable",
+            )
+        inventory_scope = stored_category(user.shop_category)
         category_by_name = {}
-        for inventory_item in session.exec(select(Item).where(Item.owner_id == user_id)).all():
+        for inventory_item in session.exec(
+            select(Item).where(
+                Item.owner_id == user_id,
+                Item.shop_category == inventory_scope,
+            )
+        ).all():
             try:
                 names = json.loads(inventory_item.names)
             except (TypeError, json.JSONDecodeError):
@@ -54,6 +67,7 @@ def create_bill(
         # Create bill
         bill = Bill(
             owner_id=user_id,
+            shop_category=inventory_scope,
             total_amount=calculated_total,
             total_items=len(bill_data.items),
             items_json=json.dumps([item.model_dump() for item in bill_data.items]),
@@ -73,6 +87,7 @@ def create_bill(
             sale_item = SaleItem(
                 owner_id=user_id,
                 bill_id=bill.id,
+                shop_category=inventory_scope,
                 item_name=item.name,
                 item_category=category_by_name.get(item.name.strip().casefold(), "General"),
                 quantity=item.quantity,

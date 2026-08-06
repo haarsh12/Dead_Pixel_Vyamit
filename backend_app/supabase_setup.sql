@@ -25,6 +25,10 @@ SELECT version();
 -- - sale_items (analytics data)
 -- - customers (customer profiles with embeddings)
 
+-- Existing deployments: before updating the backend, run
+-- `db/migrations/20260807_category_scoped_inventory.sql` in the Supabase SQL
+-- editor. It adds the per-owner, per-shop-category inventory namespace.
+
 -- ============================================
 -- Optional: Create indexes for better performance
 -- ============================================

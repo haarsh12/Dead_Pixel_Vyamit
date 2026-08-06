@@ -6,7 +6,7 @@ class ShopDetails {
   String address;
   String phone1;
   String phone2;
-  /// Kirana, Dairy, Hardware, General, Stationary, Clothing, Doctor, Other
+  /// Canonical shop category from `core/shop_categories.dart`.
   String shopCategory;
   Uint8List? qrCodeBytes; // Added for Printer Logic
 

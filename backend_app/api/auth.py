@@ -13,7 +13,7 @@ from db.schemas import (
     UpdateProfileRequest
 )
 from core.security import create_access_token, get_current_user
-from core.shop_categories import validate_category
+from core.shop_categories import stored_category, validate_category
 from services.otp_service import otp_service
 from services.sms_service import sms_service
 from core.rate_limit import otp_rate_limiter
@@ -30,6 +30,17 @@ def _find_user_by_phone(session: Session, canonical_phone: str):
     return session.exec(
         select(User).where(User.phone_number.in_((canonical_phone, digits, f"91{digits}")))
     ).first()
+
+
+def _validated_category_or_422(category: str) -> str:
+    """Keep invalid values out of profile and inventory namespaces."""
+    try:
+        return validate_category(category)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
 
 
 @router.post("/send-otp", status_code=status.HTTP_200_OK)
@@ -101,6 +112,11 @@ def verify_otp(
     """
     try:
         phone = request.phone_number.strip()
+        requested_category = (
+            _validated_category_or_422(request.shop_category)
+            if request.shop_category is not None
+            else None
+        )
         
         # Verify OTP
         is_valid = otp_service.verify_otp(session, phone, request.otp_code)
@@ -118,7 +134,7 @@ def verify_otp(
         
         if not user:
             # Create new user
-            if not request.shop_category:
+            if requested_category is None:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="shop_category is required for new users"
@@ -129,7 +145,7 @@ def verify_otp(
                 shop_name=request.shop_name,
                 owner_name=request.owner_name,
                 address=request.address,
-                shop_category=validate_category(request.shop_category)
+                shop_category=requested_category,
             )
             session.add(user)
             session.commit()
@@ -149,7 +165,7 @@ def verify_otp(
             owner_name=user.owner_name,
             address=user.address,
             phone2=user.phone2,
-            shop_category=user.shop_category
+            shop_category=stored_category(user.shop_category)
         )
         
     except HTTPException:
@@ -183,7 +199,7 @@ def get_profile(
         "owner_name": user.owner_name,
         "address": user.address,
         "phone2": user.phone2,
-        "shop_category": user.shop_category,
+        "shop_category": stored_category(user.shop_category),
         "created_at": user.created_at,
         "is_active": user.is_active
     }
@@ -215,7 +231,7 @@ def update_profile(
     if request.phone2 is not None:
         user.phone2 = request.phone2
     if request.shop_category is not None:
-        user.shop_category = validate_category(request.shop_category)
+        user.shop_category = _validated_category_or_422(request.shop_category)
     user.updated_at = datetime.utcnow()
     
     session.add(user)
@@ -234,5 +250,5 @@ def update_profile(
         "owner_name": user.owner_name,
         "address": user.address,
         "phone2": user.phone2,
-        "shop_category": user.shop_category,
+        "shop_category": stored_category(user.shop_category),
     }

@@ -42,13 +42,19 @@ class OTP(SQLModel, table=True):
 
 
 class Item(TimestampModel, table=True):
-    """Inventory items with vector embeddings"""
+    """Inventory items with vector embeddings.
+
+    ``shop_category`` is the inventory namespace.  It is deliberately
+    separate from ``category``, which remains the product group shown inside
+    the inventory UI (for example, ``Masale`` or ``Plumbing``).
+    """
     __tablename__ = "items"
     
     id: Optional[int] = Field(default=None, primary_key=True)
     master_id: str = Field(index=True)  # Frontend master list ID
     names: str  # JSON array of multi-language names
     category: str = Field(index=True)
+    shop_category: str = Field(default="General", index=True, max_length=60)
     price: float
     unit: str
     owner_id: Optional[int] = Field(default=None, foreign_key="users.id", index=True)
@@ -61,6 +67,17 @@ class Item(TimestampModel, table=True):
     
     __table_args__ = (
         Index(
+            "idx_items_owner_shop_category",
+            "owner_id",
+            "shop_category",
+        ),
+        Index(
+            "idx_items_owner_shop_category_master",
+            "owner_id",
+            "shop_category",
+            "master_id",
+        ),
+        Index(
             "idx_items_embedding_ivfflat",
             "embedding",
             postgresql_using="ivfflat",
@@ -71,11 +88,14 @@ class Item(TimestampModel, table=True):
 
 
 class Bill(TimestampModel, table=True):
-    """Saved bills"""
+    """Saved bills shared by a user, with an immutable category snapshot."""
     __tablename__ = "bills"
     
     id: Optional[int] = Field(default=None, primary_key=True)
     owner_id: int = Field(foreign_key="users.id", index=True)
+    # Dashboard and bill history aggregate all categories, while AI context
+    # filters this snapshot to prevent cross-category sales context.
+    shop_category: str = Field(default="General", index=True, max_length=60)
     
     # Bill details
     total_amount: float
@@ -90,14 +110,24 @@ class Bill(TimestampModel, table=True):
     bill_date: datetime = Field(default_factory=datetime.utcnow, index=True)
     payment_method: Optional[str] = "cash"
 
+    __table_args__ = (
+        Index(
+            "idx_bills_owner_shop_category_date",
+            "owner_id",
+            "shop_category",
+            "bill_date",
+        ),
+    )
+
 
 class SaleItem(TimestampModel, table=True):
-    """Individual sale items for analytics"""
+    """Individual sale items for analytics and category-scoped AI context."""
     __tablename__ = "sale_items"
     
     id: Optional[int] = Field(default=None, primary_key=True)
     owner_id: int = Field(foreign_key="users.id", index=True)
     bill_id: int = Field(foreign_key="bills.id", index=True)
+    shop_category: str = Field(default="General", index=True, max_length=60)
     
     # Item details
     item_name: str
@@ -110,6 +140,15 @@ class SaleItem(TimestampModel, table=True):
     # Analytics
     sale_date: datetime = Field(default_factory=datetime.utcnow, index=True)
     hour_of_day: int = Field(index=True)  # 0-23
+
+    __table_args__ = (
+        Index(
+            "idx_sale_items_owner_shop_category_date",
+            "owner_id",
+            "shop_category",
+            "sale_date",
+        ),
+    )
 
 
 class Customer(TimestampModel, table=True):

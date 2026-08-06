@@ -63,20 +63,29 @@ class _FrequentBillingScreenState extends State<FrequentBillingScreen> {
   // Standard units for the dropdown
   final List<String> _unitOptions = ['kg', 'pics', 'dozen', 'plate', 'other'];
   
-  // Category Management
-  List<String> _categories = [
-    'Pizza',
-    'Burger',
-    'Snacks',
-    'Noodles',
-    'Cakes',
-    'Beverages',
-    'Ice Cream',
-    'Sandwiches',
-    'Rolls',
-    'Chinese',
-  ];
-  String _selectedCategory = 'Pizza';
+  // Category Management. The shortcuts passed by HomeScreen are already
+  // isolated by shop category, so derive tabs from those shortcuts instead of
+  // showing the previous business type's hard-coded groups.
+  late List<String> _categories;
+  late String _selectedCategory;
+
+  @override
+  void initState() {
+    super.initState();
+    _categories = _shortcutCategories(widget.frequentItems);
+    _selectedCategory = _categories.first;
+  }
+
+  static List<String> _shortcutCategories(List<Item> items) {
+    final categories = <String>[];
+    for (final item in items) {
+      final category = item.category.trim();
+      if (category.isNotEmpty && !categories.contains(category)) {
+        categories.add(category);
+      }
+    }
+    return categories.isEmpty ? ['Items'] : categories;
+  }
 
   void _handleItemTap(Item item) {
     setState(() {

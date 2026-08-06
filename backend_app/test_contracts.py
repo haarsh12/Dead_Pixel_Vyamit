@@ -7,6 +7,8 @@ protect the endpoints and response shapes the application relies on.
 import unittest
 
 from core.rate_limit import SlidingWindowRateLimiter
+from core.shop_categories import SHOP_CATEGORIES, normalise_category
+from db.models import Bill, SaleItem
 from db.schemas import OTPRequest, VerifyOTPRequest
 from services.voice_inventory_service import VoiceInventoryService
 from services.voice_service import VoiceService
@@ -65,6 +67,36 @@ class FrontendContractTests(unittest.TestCase):
         with self.assertRaises(Exception) as context:
             limiter.check("127.0.0.1", "+919876543210")
         self.assertEqual(context.exception.status_code, 429)
+
+    def test_all_business_categories_have_one_canonical_scope(self):
+        self.assertEqual(len(SHOP_CATEGORIES), 10)
+        self.assertEqual(normalise_category("stationary"), "Stationery")
+        self.assertEqual(normalise_category("fast-food"), "Fast Food")
+        self.assertEqual(normalise_category("Doctor Prescription"), "Doctor Prescription")
+        self.assertIsNone(normalise_category("unlisted-business"))
+
+    def test_bill_and_sale_capture_the_active_category_snapshot(self):
+        bill = Bill(
+            owner_id=1,
+            shop_category="Hardware",
+            total_amount=100,
+            total_items=1,
+            items_json="[]",
+        )
+        sale = SaleItem(
+            owner_id=1,
+            bill_id=1,
+            shop_category="Hardware",
+            item_name="Hammer",
+            item_category="Tools",
+            quantity=1,
+            unit="piece",
+            price_per_unit=100,
+            total_price=100,
+            hour_of_day=12,
+        )
+        self.assertEqual(bill.shop_category, "Hardware")
+        self.assertEqual(sale.shop_category, "Hardware")
 
     def test_registered_routes_cover_every_frontend_api(self):
         from main import app
