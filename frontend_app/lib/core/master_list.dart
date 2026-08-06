@@ -432,6 +432,12 @@ final List<Item> masterFrequentList = [
   Item(id: 'pizza_6', names: ['Mushroom Pizza'], price: 190, unit: 'plate', category: 'Pizza'),
   Item(id: 'pizza_7', names: ['Cheese Pizza'], price: 200, unit: 'plate', category: 'Pizza'),
   Item(id: 'pizza_8', names: ['Veg Supreme Pizza'], price: 220, unit: 'plate', category: 'Pizza'),
+  Item(id: 'pizza_9', names: ['Deluxe Pizza'], price: 210, unit: 'plate', category: 'Pizza'),
+  Item(id: 'pizza_10', names: ['Farm Fresh Pizza'], price: 195, unit: 'plate', category: 'Pizza'),
+  Item(id: 'pizza_11', names: ['Mexican Pizza'], price: 230, unit: 'plate', category: 'Pizza'),
+  Item(id: 'pizza_12', names: ['Italian Pizza'], price: 240, unit: 'plate', category: 'Pizza'),
+  Item(id: 'pizza_13', names: ['BBQ Pizza'], price: 250, unit: 'plate', category: 'Pizza'),
+  Item(id: 'pizza_14', names: ['Spicy Veg Pizza'], price: 225, unit: 'plate', category: 'Pizza'),
 
   // Burger Category
   Item(id: 'burger_1', names: ['Veg Burger'], price: 50, unit: 'pics', category: 'Burger'),
@@ -442,6 +448,12 @@ final List<Item> masterFrequentList = [
   Item(id: 'burger_6', names: ['Mushroom Burger'], price: 85, unit: 'pics', category: 'Burger'),
   Item(id: 'burger_7', names: ['Veg Cheese Burger'], price: 90, unit: 'pics', category: 'Burger'),
   Item(id: 'burger_8', names: ['Spicy Veg Burger'], price: 75, unit: 'pics', category: 'Burger'),
+  Item(id: 'burger_9', names: ['Crispy Burger'], price: 72, unit: 'pics', category: 'Burger'),
+  Item(id: 'burger_10', names: ['Deluxe Burger'], price: 95, unit: 'pics', category: 'Burger'),
+  Item(id: 'burger_11', names: ['Mexican Burger'], price: 88, unit: 'pics', category: 'Burger'),
+  Item(id: 'burger_12', names: ['Jumbo Burger'], price: 100, unit: 'pics', category: 'Burger'),
+  Item(id: 'burger_13', names: ['Tandoori Burger'], price: 92, unit: 'pics', category: 'Burger'),
+  Item(id: 'burger_14', names: ['Double Patty Burger'], price: 110, unit: 'pics', category: 'Burger'),
 
   // Snacks Category
   Item(id: 'snacks_1', names: ['Samosa'], price: 15, unit: 'pics', category: 'Snacks'),
@@ -452,6 +464,12 @@ final List<Item> masterFrequentList = [
   Item(id: 'snacks_6', names: ['Spring Roll'], price: 50, unit: 'plate', category: 'Snacks'),
   Item(id: 'snacks_7', names: ['French Fries'], price: 60, unit: 'plate', category: 'Snacks'),
   Item(id: 'snacks_8', names: ['Paneer Pakora'], price: 70, unit: 'plate', category: 'Snacks'),
+  Item(id: 'snacks_9', names: ['Cutlet'], price: 30, unit: 'pics', category: 'Snacks'),
+  Item(id: 'snacks_10', names: ['Dahi Puri'], price: 35, unit: 'plate', category: 'Snacks'),
+  Item(id: 'snacks_11', names: ['Bhel Puri'], price: 30, unit: 'plate', category: 'Snacks'),
+  Item(id: 'snacks_12', names: ['Sev Puri'], price: 40, unit: 'plate', category: 'Snacks'),
+  Item(id: 'snacks_13', names: ['Ragda Pattice'], price: 50, unit: 'plate', category: 'Snacks'),
+  Item(id: 'snacks_14', names: ['Aloo Chaat'], price: 45, unit: 'plate', category: 'Snacks'),
 
   // Noodles Category
   Item(id: 'noodles_1', names: ['Veg Noodles'], price: 80, unit: 'plate', category: 'Noodles'),
@@ -462,6 +480,12 @@ final List<Item> masterFrequentList = [
   Item(id: 'noodles_6', names: ['Paneer Noodles'], price: 120, unit: 'plate', category: 'Noodles'),
   Item(id: 'noodles_7', names: ['Mushroom Noodles'], price: 115, unit: 'plate', category: 'Noodles'),
   Item(id: 'noodles_8', names: ['Triple Schezwan Noodles'], price: 130, unit: 'plate', category: 'Noodles'),
+  Item(id: 'noodles_9', names: ['Hong Kong Noodles'], price: 125, unit: 'plate', category: 'Noodles'),
+  Item(id: 'noodles_10', names: ['American Chopsuey'], price: 140, unit: 'plate', category: 'Noodles'),
+  Item(id: 'noodles_11', names: ['Thai Noodles'], price: 135, unit: 'plate', category: 'Noodles'),
+  Item(id: 'noodles_12', names: ['Korean Noodles'], price: 145, unit: 'plate', category: 'Noodles'),
+  Item(id: 'noodles_13', names: ['Crispy Noodles'], price: 138, unit: 'plate', category: 'Noodles'),
+  Item(id: 'noodles_14', names: ['Burnt Garlic Noodles'], price: 128, unit: 'plate', category: 'Noodles'),
 
   // Cakes Category
   Item(id: 'cakes_1', names: ['Chocolate Cake'], price: 400, unit: 'kg', category: 'Cakes'),
@@ -472,6 +496,12 @@ final List<Item> masterFrequentList = [
   Item(id: 'cakes_6', names: ['Red Velvet Cake'], price: 500, unit: 'kg', category: 'Cakes'),
   Item(id: 'cakes_7', names: ['Strawberry Cake'], price: 430, unit: 'kg', category: 'Cakes'),
   Item(id: 'cakes_8', names: ['Fruit Cake'], price: 460, unit: 'kg', category: 'Cakes'),
+  Item(id: 'cakes_9', names: ['Truffle Cake'], price: 480, unit: 'kg', category: 'Cakes'),
+  Item(id: 'cakes_10', names: ['White Forest Cake'], price: 440, unit: 'kg', category: 'Cakes'),
+  Item(id: 'cakes_11', names: ['Blueberry Cake'], price: 470, unit: 'kg', category: 'Cakes'),
+  Item(id: 'cakes_12', names: ['Mango Cake'], price: 410, unit: 'kg', category: 'Cakes'),
+  Item(id: 'cakes_13', names: ['Coffee Cake'], price: 390, unit: 'kg', category: 'Cakes'),
+  Item(id: 'cakes_14', names: ['Caramel Cake'], price: 460, unit: 'kg', category: 'Cakes'),
 
   // Beverages Category
   Item(id: 'beverages_1', names: ['Cold Coffee'], price: 60, unit: 'pics', category: 'Beverages'),
@@ -482,6 +512,12 @@ final List<Item> masterFrequentList = [
   Item(id: 'beverages_6', names: ['Chocolate Shake'], price: 80, unit: 'pics', category: 'Beverages'),
   Item(id: 'beverages_7', names: ['Fresh Lime Soda'], price: 40, unit: 'pics', category: 'Beverages'),
   Item(id: 'beverages_8', names: ['Lassi'], price: 50, unit: 'pics', category: 'Beverages'),
+  Item(id: 'beverages_9', names: ['Banana Shake'], price: 65, unit: 'pics', category: 'Beverages'),
+  Item(id: 'beverages_10', names: ['Strawberry Shake'], price: 75, unit: 'pics', category: 'Beverages'),
+  Item(id: 'beverages_11', names: ['Green Tea'], price: 30, unit: 'pics', category: 'Beverages'),
+  Item(id: 'beverages_12', names: ['Lemonade'], price: 35, unit: 'pics', category: 'Beverages'),
+  Item(id: 'beverages_13', names: ['Iced Tea'], price: 45, unit: 'pics', category: 'Beverages'),
+  Item(id: 'beverages_14', names: ['Mojito'], price: 55, unit: 'pics', category: 'Beverages'),
 
   // Ice Cream Category
   Item(id: 'icecream_1', names: ['Vanilla Ice Cream'], price: 40, unit: 'pics', category: 'Ice Cream'),
@@ -492,6 +528,12 @@ final List<Item> masterFrequentList = [
   Item(id: 'icecream_6', names: ['Kulfi'], price: 30, unit: 'pics', category: 'Ice Cream'),
   Item(id: 'icecream_7', names: ['Sundae'], price: 80, unit: 'pics', category: 'Ice Cream'),
   Item(id: 'icecream_8', names: ['Ice Cream Sandwich'], price: 35, unit: 'pics', category: 'Ice Cream'),
+  Item(id: 'icecream_9', names: ['Pista Ice Cream'], price: 65, unit: 'pics', category: 'Ice Cream'),
+  Item(id: 'icecream_10', names: ['Cassata'], price: 70, unit: 'pics', category: 'Ice Cream'),
+  Item(id: 'icecream_11', names: ['Black Current'], price: 55, unit: 'pics', category: 'Ice Cream'),
+  Item(id: 'icecream_12', names: ['Tutti Frutti'], price: 50, unit: 'pics', category: 'Ice Cream'),
+  Item(id: 'icecream_13', names: ['Choco Chip'], price: 62, unit: 'pics', category: 'Ice Cream'),
+  Item(id: 'icecream_14', names: ['Mint Chocolate'], price: 68, unit: 'pics', category: 'Ice Cream'),
 
   // Sandwiches Category
   Item(id: 'sandwich_1', names: ['Veg Sandwich'], price: 40, unit: 'pics', category: 'Sandwiches'),
@@ -502,6 +544,12 @@ final List<Item> masterFrequentList = [
   Item(id: 'sandwich_6', names: ['Bombay Sandwich'], price: 65, unit: 'pics', category: 'Sandwiches'),
   Item(id: 'sandwich_7', names: ['Club Sandwich'], price: 80, unit: 'pics', category: 'Sandwiches'),
   Item(id: 'sandwich_8', names: ['Cheese Chilli Sandwich'], price: 75, unit: 'pics', category: 'Sandwiches'),
+  Item(id: 'sandwich_9', names: ['Masala Sandwich'], price: 45, unit: 'pics', category: 'Sandwiches'),
+  Item(id: 'sandwich_10', names: ['Mayo Sandwich'], price: 52, unit: 'pics', category: 'Sandwiches'),
+  Item(id: 'sandwich_11', names: ['Jumbo Sandwich'], price: 85, unit: 'pics', category: 'Sandwiches'),
+  Item(id: 'sandwich_12', names: ['Deluxe Sandwich'], price: 90, unit: 'pics', category: 'Sandwiches'),
+  Item(id: 'sandwich_13', names: ['Tandoori Sandwich'], price: 78, unit: 'pics', category: 'Sandwiches'),
+  Item(id: 'sandwich_14', names: ['Aloo Tikki Sandwich'], price: 58, unit: 'pics', category: 'Sandwiches'),
 
   // Rolls Category
   Item(id: 'rolls_1', names: ['Veg Roll'], price: 50, unit: 'pics', category: 'Rolls'),
@@ -512,6 +560,12 @@ final List<Item> masterFrequentList = [
   Item(id: 'rolls_6', names: ['Mushroom Roll'], price: 75, unit: 'pics', category: 'Rolls'),
   Item(id: 'rolls_7', names: ['Spring Roll'], price: 55, unit: 'pics', category: 'Rolls'),
   Item(id: 'rolls_8', names: ['Paneer Tikka Roll'], price: 85, unit: 'pics', category: 'Rolls'),
+  Item(id: 'rolls_9', names: ['Corn Roll'], price: 58, unit: 'pics', category: 'Rolls'),
+  Item(id: 'rolls_10', names: ['Mixed Veg Roll'], price: 68, unit: 'pics', category: 'Rolls'),
+  Item(id: 'rolls_11', names: ['Crispy Roll'], price: 72, unit: 'pics', category: 'Rolls'),
+  Item(id: 'rolls_12', names: ['Mexican Roll'], price: 78, unit: 'pics', category: 'Rolls'),
+  Item(id: 'rolls_13', names: ['Tandoori Roll'], price: 80, unit: 'pics', category: 'Rolls'),
+  Item(id: 'rolls_14', names: ['Deluxe Roll'], price: 90, unit: 'pics', category: 'Rolls'),
 
   // Chinese Category
   Item(id: 'chinese_1', names: ['Veg Fried Rice'], price: 90, unit: 'plate', category: 'Chinese'),
@@ -522,6 +576,12 @@ final List<Item> masterFrequentList = [
   Item(id: 'chinese_6', names: ['Spring Roll'], price: 70, unit: 'plate', category: 'Chinese'),
   Item(id: 'chinese_7', names: ['Paneer Manchurian'], price: 140, unit: 'plate', category: 'Chinese'),
   Item(id: 'chinese_8', names: ['Veg Momos'], price: 60, unit: 'plate', category: 'Chinese'),
+  Item(id: 'chinese_9', names: ['Chilli Mushroom'], price: 120, unit: 'plate', category: 'Chinese'),
+  Item(id: 'chinese_10', names: ['Paneer Chowmein'], price: 105, unit: 'plate', category: 'Chinese'),
+  Item(id: 'chinese_11', names: ['Mixed Fried Rice'], price: 95, unit: 'plate', category: 'Chinese'),
+  Item(id: 'chinese_12', names: ['Garlic Fried Rice'], price: 92, unit: 'plate', category: 'Chinese'),
+  Item(id: 'chinese_13', names: ['Paneer Momos'], price: 75, unit: 'plate', category: 'Chinese'),
+  Item(id: 'chinese_14', names: ['Crispy Veg'], price: 125, unit: 'plate', category: 'Chinese'),
 ];
 
 

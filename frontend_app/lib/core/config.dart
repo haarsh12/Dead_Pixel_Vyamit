@@ -1,29 +1,32 @@
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 
 class ApiConfig {
-  /// Configure the deployed backend at build time, for example:
-  /// flutter build apk --dart-define=API_BASE_URL=https://api.example.com
-  static const String _configuredUrl = String.fromEnvironment('API_BASE_URL');
-
-  // Local development defaults. A physical Android device should use
-  // API_BASE_URL with the computer's reachable LAN address.
-  static const String _emulatorUrl = 'http://10.0.2.2:8000';
-  static const String _localUrl = 'http://localhost:8000';
+  // 🚀 PRODUCTION - Render Backend
+  static const String _productionUrl = "https://project-21-m0or.onrender.com";
+  
+  // 🧪 LOCAL DEVELOPMENT URLs
+  static const String _emulatorUrl = "http://10.0.2.2:8000";
+  static const String _realDeviceUrl = "http://192.168.110.207:8000";  // Replace with your laptop's local IP
+  static const String _localUrl = "http://localhost:8000";
 
   static String get baseUrl {
-    final configured = _configuredUrl.trim();
-    if (configured.isNotEmpty) {
-      return configured.replaceFirst(RegExp(r'/+$'), '');
-    }
-
+    // 🧪 ACTIVE: DEVELOPMENT MODE - Real Device via USB
     if (kReleaseMode) {
-      throw StateError('API_BASE_URL must be supplied for a release build.');
+      return _productionUrl;  // Use production in release mode
     }
-
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      return _emulatorUrl;
+    
+    if (Platform.isAndroid) {
+      return _realDeviceUrl;  // Real phone connected via USB
+      // return _emulatorUrl;  // Uncomment for emulator
     }
-    return _localUrl;
+    
+    return _localUrl;  // Web/Windows
+    
+    // 🚀 TO SWITCH TO PRODUCTION: Comment above code and uncomment below
+    /*
+    return _productionUrl;
+    */
   }
 
   /// Convert the HTTP API origin to its matching WebSocket origin.

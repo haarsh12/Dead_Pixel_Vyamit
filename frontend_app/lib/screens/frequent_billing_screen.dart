@@ -56,6 +56,9 @@ class _FrequentBillingScreenState extends State<FrequentBillingScreen> {
   
   // Edit Mode State
   bool _isEditMode = false;
+  
+  // View toggle - true = show bill, false = show items
+  bool _showBillView = false;
 
   // Standard units for the dropdown
   final List<String> _unitOptions = ['kg', 'pics', 'dozen', 'plate', 'other'];
@@ -139,6 +142,7 @@ class _FrequentBillingScreenState extends State<FrequentBillingScreen> {
     setState(() {
       _currentBill.clear();
       _itemCounts.clear();
+      _showBillView = false;
       if (_isEditMode) {
         _toggleEditMode();
       }
@@ -187,6 +191,11 @@ class _FrequentBillingScreenState extends State<FrequentBillingScreen> {
 
     widget.onBillFinalized(billData);
     _resetBill();
+  }
+  
+  // Show FAB only when items selected and not in bill view
+  bool _shouldShowFAB() {
+    return !_showBillView && _currentBill.isNotEmpty;
   }
 
   void _showFrequentItemDialog({Item? item}) {
@@ -612,6 +621,236 @@ class _FrequentBillingScreenState extends State<FrequentBillingScreen> {
         .where((item) => item.category == _selectedCategory)
         .toList();
   }
+  
+  // Build items selection view (full screen)
+  Widget _buildItemsView() {
+    return Column(
+      children: [
+        // Category Bar
+        Container(
+          height: 85,
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: _categories.length + 1,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (context, index) {
+              if (index == _categories.length) {
+                return GestureDetector(
+                  onTap: _showAddCategoryDialog,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.primaryGreen.withOpacity(0.5)),
+                    ),
+                    child: const Center(
+                      child: Icon(Icons.add, size: 30, color: AppColors.primaryGreen),
+                    ),
+                  ),
+                );
+              }
+              
+              final cat = _categories[index];
+              final isSelected = _selectedCategory == cat;
+              final itemCount = widget.frequentItems.where((i) => i.category == cat).length;
+              
+              return GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedCategory = cat;
+                  });
+                },
+                onLongPress: () => _showDeleteCategoryDialog(cat),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: isSelected ? AppColors.primaryGreen : Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isSelected ? AppColors.primaryGreen : Colors.grey.shade300,
+                      width: 2,
+                    ),
+                    boxShadow: isSelected ? [
+                      BoxShadow(
+                        color: AppColors.primaryGreen.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      )
+                    ] : null,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        cat,
+                        style: TextStyle(
+                          color: isSelected ? Colors.white : Colors.black,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        '$itemCount items',
+                        style: TextStyle(
+                          color: isSelected ? Colors.white.withOpacity(0.9) : Colors.grey,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        
+        const SizedBox(height: 10),
+        
+        // Items Grid (Full Screen)
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: GridView.builder(
+              padding: const EdgeInsets.only(bottom: 80),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                childAspectRatio: 1.5,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+              ),
+              itemCount: _getFilteredItems().length,
+              itemBuilder: (context, index) {
+                final item = _getFilteredItems()[index];
+                final count = _itemCounts[item.id] ?? 0;
+                final isSelected = count > 0;
+                return GestureDetector(
+                  onTap: () => _handleItemTap(item),
+                  onLongPress: () => _showFrequentItemDialog(item: item),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isSelected
+                            ? AppColors.primaryGreen
+                            : Colors.grey.shade200,
+                        width: isSelected ? 2 : 1,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: isSelected
+                              ? AppColors.primaryGreen.withOpacity(0.2)
+                              : Colors.black.withOpacity(0.05),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        )
+                      ],
+                    ),
+                    child: Stack(
+                      children: [
+                        Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(item.names[0],
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.textBlack)),
+                              const SizedBox(height: 5),
+                              Text("₹${_formatNumber(item.price)} / ${_getShortUnit(item.unit)}",
+                                  style: const TextStyle(
+                                      fontSize: 14,
+                                      color: AppColors.textGrey)),
+                            ],
+                          ),
+                        ),
+                        if (isSelected)
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(14),
+                            child: Container(
+                              width: double.infinity,
+                              height: double.infinity,
+                              color: AppColors.primaryGreen.withOpacity(0.3),
+                              child: Center(
+                                child: Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.4),
+                                      shape: BoxShape.circle),
+                                  child: Text(count.toString(),
+                                      style: const TextStyle(
+                                          fontSize: 24,
+                                          fontWeight: FontWeight.w900,
+                                          color: AppColors.primaryGreen)),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+  
+  // Build checkout FAB with clear button
+  Widget _buildCheckoutFAB() {
+    final itemCount = _currentBill.length;
+    
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        // Clear button above
+        FloatingActionButton(
+          mini: true,
+          onPressed: () {
+            setState(() {
+              _currentBill.clear();
+              _itemCounts.clear();
+            });
+          },
+          backgroundColor: Colors.red,
+          child: const Icon(Icons.close, color: Colors.white, size: 20),
+        ),
+        const SizedBox(height: 12),
+        // Review button
+        FloatingActionButton.extended(
+          onPressed: () {
+            setState(() {
+              _showBillView = true;
+            });
+          },
+          backgroundColor: AppColors.primaryGreen,
+          icon: const Icon(Icons.shopping_cart_checkout, color: Colors.white),
+          label: Text(
+            'Review ($itemCount)',
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
+          elevation: 6,
+        ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -619,560 +858,417 @@ class _FrequentBillingScreenState extends State<FrequentBillingScreen> {
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: const Text("Frequent Billing"),
+        leading: _showBillView 
+          ? IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () {
+                setState(() {
+                  _showBillView = false;
+                });
+              },
+            )
+          : null,
         actions: [
-          IconButton(
-            icon: Icon(Icons.print,
-                color: widget.isPrinterConnected
-                    ? AppColors.printerConnected
-                    : AppColors.printerDisconnected),
-            onPressed: widget.togglePrinter,
-          ),
-          IconButton(
-            icon: const Icon(Icons.add_circle_outline),
-            onPressed: () => _showFrequentItemDialog(),
-          ),
+          if (!_showBillView) ...[
+            IconButton(
+              icon: Icon(Icons.print,
+                  color: widget.isPrinterConnected
+                      ? AppColors.printerConnected
+                      : AppColors.printerDisconnected),
+              onPressed: widget.togglePrinter,
+            ),
+            IconButton(
+              icon: const Icon(Icons.add_circle_outline),
+              onPressed: () => _showFrequentItemDialog(),
+            ),
+          ] else ...[
+            IconButton(
+              icon: Icon(_isEditMode ? Icons.close : Icons.edit),
+              onPressed: () {
+                if (_currentBill.isEmpty) {
+                  _addManualItem();
+                } else {
+                  _toggleEditMode();
+                }
+              },
+            ),
+          ],
         ],
       ),
-      body: Column(
-        children: [
-          // --- TOP SECTION: LIVE BILL ---
-          Expanded(
-            flex: _isEditMode ? 5 : 4,
-            child: Container(
-              margin: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(25),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 20,
-                    offset: const Offset(0, -5),
-                  )
-                ],
-              ),
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 15, 20, 10),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text("Live Bill",
+      body: _showBillView ? _buildBillView() : _buildItemsView(),
+      floatingActionButton: _shouldShowFAB() ? _buildCheckoutFAB() : null,
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+    );
+  }
+  
+  // Build bill review view (full screen)
+  Widget _buildBillView() {
+    return Column(
+      children: [
+        // Bill items list
+        Expanded(
+          child: Container(
+            margin: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(25),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 20,
+                  offset: const Offset(0, -5),
+                )
+              ],
+            ),
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 15, 20, 10),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text("Live Bill",
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 16)),
+                      TextButton.icon(
+                        onPressed: _currentBill.isEmpty ? null : _resetBill,
+                        icon: const Icon(Icons.cancel_outlined,
+                            size: 18, color: Colors.red),
+                        label: const Text("Cancel Bill",
                             style: TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 16)),
-                        Row(
-                          children: [
-                            TextButton.icon(
-                              onPressed: _currentBill.isEmpty ? null : _resetBill,
-                              icon: const Icon(Icons.cancel_outlined,
-                                  size: 18, color: Colors.red),
-                              label: const Text("Cancel Bill",
-                                  style: TextStyle(
-                                      color: Colors.red,
-                                      fontWeight: FontWeight.bold)),
-                            ),
-                            const SizedBox(width: 8),
-                            IconButton(
-                              onPressed: () {
-                                if (_currentBill.isEmpty) {
-                                  // Manual Add Mode
-                                  _addManualItem();
-                                } else {
-                                  _toggleEditMode();
-                                }
-                              },
-                              icon: Icon(
-                                _currentBill.isEmpty 
-                                  ? Icons.add 
-                                  : (_isEditMode ? Icons.close : Icons.edit),
-                                size: 20,
-                                color: AppColors.primaryGreen,
-                              ),
-                              style: IconButton.styleFrom(
-                                backgroundColor: AppColors.primaryGreen.withOpacity(0.1),
-                                padding: const EdgeInsets.all(8),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+                                color: Colors.red,
+                                fontWeight: FontWeight.bold)),
+                      ),
+                    ],
                   ),
-                  
-                  // Column Headers
-                  const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 5),
-                      child: Row(children: [
-                        Expanded(
-                            flex: 4,
-                            child: Text("Item",
-                                style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
-                                    color: Colors.grey))),
-                        Expanded(
-                            flex: 1,
-                            child: Text("Qty",
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
-                                    color: Colors.grey))),
-                        Expanded(
-                            flex: 3,
-                            child: Text("Rate",
-                                textAlign: TextAlign.right,
-                                style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
-                                    color: Colors.grey))),
-                        Expanded(
-                            flex: 2,
-                            child: Text("Total",
-                                textAlign: TextAlign.right,
-                                style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
-                                    color: Colors.grey))),
-                      ])),
-                  const Divider(height: 1),
-                  Expanded(
-                    child: _currentBill.isEmpty
-                        ? const Center(
-                            child: Text("Tap + to add items manually\nor tap items below",
-                                textAlign: TextAlign.center,
-                                style: TextStyle(color: Colors.grey)))
-                        : ListView.separated(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 20, vertical: 10),
-                            itemCount: _currentBill.length + (_isEditMode ? 1 : 0),
-                            separatorBuilder: (_, __) =>
-                                const Divider(height: 16),
-                            itemBuilder: (context, index) {
-                              // Add Item Button at the end in Edit Mode
-                              if (_isEditMode && index == _currentBill.length) {
-                                return GestureDetector(
-                                  onTap: _addManualItem,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 12),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.primaryGreen.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(
-                                        color: AppColors.primaryGreen.withOpacity(0.3),
-                                        style: BorderStyle.solid,
-                                      ),
-                                    ),
-                                    child: const Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Icon(Icons.add, color: AppColors.primaryGreen, size: 20),
-                                        SizedBox(width: 8),
-                                        Text(
-                                          "Add Item",
-                                          style: TextStyle(
-                                            color: AppColors.primaryGreen,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                      ],
+                ),
+                
+                // Column Headers
+                const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+                    child: Row(children: [
+                      Expanded(
+                          flex: 4,
+                          child: Text("Item",
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                  color: Colors.grey))),
+                      Expanded(
+                          flex: 1,
+                          child: Text("Qty",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                  color: Colors.grey))),
+                      Expanded(
+                          flex: 3,
+                          child: Text("Rate",
+                              textAlign: TextAlign.right,
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                  color: Colors.grey))),
+                      Expanded(
+                          flex: 2,
+                          child: Text("Total",
+                              textAlign: TextAlign.right,
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                  color: Colors.grey))),
+                    ])),
+                const Divider(height: 1),
+                Expanded(
+                  child: _currentBill.isEmpty
+                      ? const Center(
+                          child: Text("Tap + to add items manually\nor go back to select items",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: Colors.grey)))
+                      : ListView.separated(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 10),
+                          itemCount: _currentBill.length + (_isEditMode ? 1 : 0),
+                          separatorBuilder: (_, __) =>
+                              const Divider(height: 16),
+                          itemBuilder: (context, index) {
+                            if (_isEditMode && index == _currentBill.length) {
+                              return GestureDetector(
+                                onTap: _addManualItem,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primaryGreen.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: AppColors.primaryGreen.withOpacity(0.3),
+                                      style: BorderStyle.solid,
                                     ),
                                   ),
-                                );
-                              }
-                              
-                              final item = _currentBill[index];
-                              
-                              if (_isEditMode) {
-                                // Editable Mode - 4 Column Layout
-                                return Row(
-                                  children: [
-                                    GestureDetector(
-                                      onTap: () {
-                                        setState(() {
-                                          _currentBill.removeAt(index);
-                                        });
-                                      },
-                                      child: Container(
-                                        margin: const EdgeInsets.only(right: 8),
-                                        padding: const EdgeInsets.all(2),
-                                        decoration: BoxDecoration(
-                                            color: Colors.red[50],
-                                            shape: BoxShape.circle),
-                                        child: const Icon(Icons.remove,
-                                            size: 16, color: Colors.red),
-                                      ),
-                                    ),
-                                    Expanded(
-                                      flex: 4,
-                                      child: TextFormField(
-                                        initialValue: item.name,
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: 14),
-                                        decoration: const InputDecoration(
-                                          isDense: true,
-                                          contentPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-                                          border: OutlineInputBorder(),
+                                  child: const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.add, color: AppColors.primaryGreen, size: 20),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        "Add Item",
+                                        style: TextStyle(
+                                          color: AppColors.primaryGreen,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14,
                                         ),
-                                        onChanged: (value) => _updateBillItem(index, 'name', value),
                                       ),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Expanded(
-                                      flex: 1,
-                                      child: TextFormField(
-                                        initialValue: _extractQuantityNumber(item.qtyDisplay),
-                                        textAlign: TextAlign.center,
-                                        keyboardType: TextInputType.number,
-                                        style: const TextStyle(fontSize: 13),
-                                        decoration: const InputDecoration(
-                                          isDense: true,
-                                          contentPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 2),
-                                          border: OutlineInputBorder(),
-                                        ),
-                                        onChanged: (value) {
-                                          // Update quantity keeping the unit
-                                          final newQtyDisplay = '$value${_getShortUnit(item.unit)}';
-                                          _updateBillItem(index, 'qtyDisplay', newQtyDisplay);
-                                        },
-                                      ),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Expanded(
-                                      flex: 3,
-                                      child: TextFormField(
-                                        initialValue: _formatNumber(item.rate),
-                                        textAlign: TextAlign.right,
-                                        keyboardType: TextInputType.number,
-                                        style: const TextStyle(fontSize: 11),
-                                        decoration: InputDecoration(
-                                          isDense: true,
-                                          contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-                                          border: const OutlineInputBorder(),
-                                          prefixText: '₹',
-                                          suffixText: '/${_getShortUnit(item.unit)}',
-                                        ),
-                                        onChanged: (value) => _updateBillItem(index, 'rate', value),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Expanded(
-                                      flex: 2,
-                                      child: Text("₹${_formatNumber(item.total)}",
-                                          textAlign: TextAlign.right,
-                                          style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 14)),
-                                    ),
-                                  ],
-                                );
-                              } else {
-                                // Display Mode - 4 Column Layout
-                                return Row(
-                                  children: [
-                                    GestureDetector(
-                                      onTap: () => _reduceItem(item),
-                                      child: Container(
-                                        margin: const EdgeInsets.only(right: 8),
-                                        padding: const EdgeInsets.all(2),
-                                        decoration: BoxDecoration(
-                                            color: Colors.red[50],
-                                            shape: BoxShape.circle),
-                                        child: const Icon(Icons.remove,
-                                            size: 16, color: Colors.red),
-                                      ),
-                                    ),
-                                    Expanded(
-                                      flex: 4,
-                                      child: Text(item.name,
-                                          style: const TextStyle(
-                                              fontWeight: FontWeight.w600,
-                                              fontSize: 14)),
-                                    ),
-                                    Expanded(
-                                      flex: 1,
-                                      child: Text(_extractQuantityNumber(item.qtyDisplay),
-                                          textAlign: TextAlign.center,
-                                          style: const TextStyle(fontSize: 13)),
-                                    ),
-                                    Expanded(
-                                      flex: 3,
-                                      child: Text(_formatRateWithUnit(item.rate, item.unit),
-                                          textAlign: TextAlign.right,
-                                          style: const TextStyle(fontSize: 12)),
-                                    ),
-                                    Expanded(
-                                      flex: 2,
-                                      child: Text("₹${_formatNumber(item.total)}",
-                                          textAlign: TextAlign.right,
-                                          style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 14)),
-                                    ),
-                                  ],
-                                );
-                              }
-                            },
-                          ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[50],
-                      borderRadius: const BorderRadius.vertical(
-                          bottom: Radius.circular(25)),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        ElevatedButton.icon(
-                          onPressed:
-                              _finalizeBill, // Printer check is inside here
-                          icon: const Icon(Icons.print,
-                              color: Colors.white, size: 20),
-                          label: const Text("PRINT",
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.textBlack,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 25, vertical: 12),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30)),
-                          ),
-                        ),
-                        
-                        // Share Icon (Bigger and tilted northeast)
-                        Transform.rotate(
-                          angle: -0.5, // Tilt northeast (about 30 degrees)
-                          child: IconButton(
-                            onPressed: _currentBill.isEmpty ? null : _openShareModal,
-                            icon: Icon(
-                              Icons.send, // Paper plane icon
-                              color: _currentBill.isEmpty ? Colors.grey : AppColors.primaryGreen,
-                              size: 28, // Bigger size
-                            ),
-                            style: IconButton.styleFrom(
-                              backgroundColor: _currentBill.isEmpty 
-                                  ? Colors.grey[200] 
-                                  : AppColors.primaryGreen.withOpacity(0.1),
-                              padding: const EdgeInsets.all(12),
-                            ),
-                          ),
-                        ),
-                        
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            const Text("TOTAL",
-                                style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey,
-                                    fontWeight: FontWeight.bold)),
-                            Text(
-                              "₹${_formatNumber(_currentBill.fold<double>(0, (sum, item) => sum + item.total))}",
-                              style: const TextStyle(
-                                  fontSize: 26,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.textBlack),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // --- CATEGORY BAR ---
-          if (!_isEditMode)
-            Container(
-              height: 60,
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: _categories.length + 1,
-                separatorBuilder: (_, __) => const SizedBox(width: 10),
-                itemBuilder: (context, index) {
-                  // Add Category button at the end
-                  if (index == _categories.length) {
-                    return GestureDetector(
-                      onTap: _showAddCategoryDialog,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.primaryGreen.withOpacity(0.5)),
-                        ),
-                        child: const Center(
-                          child: Icon(Icons.add, size: 22, color: AppColors.primaryGreen),
-                        ),
-                      ),
-                    );
-                  }
-                  
-                  final cat = _categories[index];
-                  final isSelected = _selectedCategory == cat;
-                  final itemCount = widget.frequentItems.where((i) => i.category == cat).length;
-                  
-                  return GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _selectedCategory = cat;
-                      });
-                    },
-                    onLongPress: () => _showDeleteCategoryDialog(cat),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: isSelected ? AppColors.primaryGreen : Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: isSelected ? AppColors.primaryGreen : Colors.grey.shade300,
-                        ),
-                        boxShadow: isSelected ? [
-                          BoxShadow(
-                            color: AppColors.primaryGreen.withOpacity(0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          )
-                        ] : null,
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            cat,
-                            style: TextStyle(
-                              color: isSelected ? Colors.white : Colors.black,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '$itemCount items',
-                            style: TextStyle(
-                              color: isSelected ? Colors.white.withOpacity(0.8) : Colors.grey,
-                              fontSize: 10,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          
-          const SizedBox(height: 10),
-
-          // --- BOTTOM SECTION: GRID ---
-          if (!_isEditMode)
-            Expanded(
-              flex: 3,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: GridView.builder(
-                padding: const EdgeInsets.only(bottom: 20),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  childAspectRatio: 1.5,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                ),
-                itemCount: _getFilteredItems().length,
-                itemBuilder: (context, index) {
-                  final item = _getFilteredItems()[index];
-                  final count = _itemCounts[item.id] ?? 0;
-                  final isSelected = count > 0;
-                  return GestureDetector(
-                    onTap: () => _handleItemTap(item),
-                    // FIXED: Long press opens Edit Dialog (was deleting)
-                    onLongPress: () => _showFrequentItemDialog(item: item),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: isSelected
-                              ? AppColors.primaryGreen
-                              : Colors.grey.shade200,
-                          width: isSelected ? 2 : 1,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: isSelected
-                                ? AppColors.primaryGreen.withOpacity(0.2)
-                                : Colors.black.withOpacity(0.05),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          )
-                        ],
-                      ),
-                      child: Stack(
-                        children: [
-                          Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(item.names[0],
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.textBlack)),
-                                const SizedBox(height: 5),
-                                Text("₹${_formatNumber(item.price)} / ${_getShortUnit(item.unit)}",
-                                    style: const TextStyle(
-                                        fontSize: 14,
-                                        color: AppColors.textGrey)),
-                              ],
-                            ),
-                          ),
-                          if (isSelected)
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(14),
-                              child: Container(
-                                width: double.infinity,
-                                height: double.infinity,
-                                color: AppColors.primaryGreen.withOpacity(0.3),
-                                child: Center(
-                                  child: Container(
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                        color: Colors.white.withOpacity(0.4),
-                                        shape: BoxShape.circle),
-                                    child: Text(count.toString(),
-                                        style: const TextStyle(
-                                            fontSize: 24,
-                                            fontWeight: FontWeight.w900,
-                                            color: AppColors.primaryGreen)),
+                                    ],
                                   ),
                                 ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
+                              );
+                            }
+                            
+                            final item = _currentBill[index];
+                            
+                            if (_isEditMode) {
+                              // Editable bill item
+                              return Row(
+                                children: [
+                                  GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        _currentBill.removeAt(index);
+                                      });
+                                    },
+                                    child: Container(
+                                      margin: const EdgeInsets.only(right: 8),
+                                      padding: const EdgeInsets.all(2),
+                                      decoration: BoxDecoration(
+                                          color: Colors.red[50],
+                                          shape: BoxShape.circle),
+                                      child: const Icon(Icons.remove,
+                                          size: 16, color: Colors.red),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    flex: 4,
+                                    child: TextFormField(
+                                      initialValue: item.name,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 14),
+                                      decoration: const InputDecoration(
+                                        isDense: true,
+                                        contentPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                                        border: OutlineInputBorder(),
+                                      ),
+                                      onChanged: (value) => _updateBillItem(index, 'name', value),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    flex: 1,
+                                    child: TextFormField(
+                                      initialValue: _extractQuantityNumber(item.qtyDisplay),
+                                      textAlign: TextAlign.center,
+                                      keyboardType: TextInputType.number,
+                                      style: const TextStyle(fontSize: 13),
+                                      decoration: const InputDecoration(
+                                        isDense: true,
+                                        contentPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 2),
+                                        border: OutlineInputBorder(),
+                                      ),
+                                      onChanged: (value) {
+                                        final newQtyDisplay = '$value${_getShortUnit(item.unit)}';
+                                        _updateBillItem(index, 'qtyDisplay', newQtyDisplay);
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    flex: 3,
+                                    child: TextFormField(
+                                      initialValue: _formatNumber(item.rate),
+                                      textAlign: TextAlign.right,
+                                      keyboardType: TextInputType.number,
+                                      style: const TextStyle(fontSize: 11),
+                                      decoration: InputDecoration(
+                                        isDense: true,
+                                        contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                                        border: const OutlineInputBorder(),
+                                        prefixText: '₹',
+                                        suffixText: '/${_getShortUnit(item.unit)}',
+                                      ),
+                                      onChanged: (value) => _updateBillItem(index, 'rate', value),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    flex: 2,
+                                    child: Text("₹${_formatNumber(item.total)}",
+                                        textAlign: TextAlign.right,
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14)),
+                                  ),
+                                ],
+                              );
+                            } else {
+                              // Display-only bill item
+                              return Row(
+                                children: [
+                                  GestureDetector(
+                                    onTap: () => _reduceItem(item),
+                                    child: Container(
+                                      margin: const EdgeInsets.only(right: 8),
+                                      padding: const EdgeInsets.all(2),
+                                      decoration: BoxDecoration(
+                                          color: Colors.red[50],
+                                          shape: BoxShape.circle),
+                                      child: const Icon(Icons.remove,
+                                          size: 16, color: Colors.red),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    flex: 4,
+                                    child: Text(item.name,
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 14)),
+                                  ),
+                                  Expanded(
+                                    flex: 1,
+                                    child: Text(_extractQuantityNumber(item.qtyDisplay),
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(fontSize: 13)),
+                                  ),
+                                  Expanded(
+                                    flex: 3,
+                                    child: Text(_formatRateWithUnit(item.rate, item.unit),
+                                        textAlign: TextAlign.right,
+                                        style: const TextStyle(fontSize: 12)),
+                                  ),
+                                  Expanded(
+                                    flex: 2,
+                                    child: Text("₹${_formatNumber(item.total)}",
+                                        textAlign: TextAlign.right,
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14)),
+                                  ),
+                                ],
+                              );
+                            }
+                          },
+                        ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        
+        // Add more items button
+        if (!_isEditMode && _currentBill.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: OutlinedButton.icon(
+              onPressed: () {
+                setState(() {
+                  _showBillView = false;
+                });
+              },
+              icon: const Icon(Icons.add_shopping_cart),
+              label: const Text("Add More Items"),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 48),
+                side: BorderSide(color: AppColors.primaryGreen),
+                foregroundColor: AppColors.primaryGreen,
               ),
             ),
           ),
-        ],
-      ),
+        
+        // Bill Footer
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.grey[50],
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, -5),
+              )
+            ],
+          ),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    "TOTAL",
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey,
+                    ),
+                  ),
+                  Text(
+                    "₹${_formatNumber(_currentBill.fold<double>(0, (sum, item) => sum + item.total))}",
+                    style: const TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textBlack,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Transform.rotate(
+                    angle: -0.5,
+                    child: IconButton(
+                      onPressed: _currentBill.isEmpty ? null : _openShareModal,
+                      icon: Icon(
+                        Icons.send,
+                        color: _currentBill.isEmpty ? Colors.grey : AppColors.primaryGreen,
+                        size: 28,
+                      ),
+                      style: IconButton.styleFrom(
+                        backgroundColor: _currentBill.isEmpty 
+                            ? Colors.grey[200] 
+                            : AppColors.primaryGreen.withOpacity(0.1),
+                        padding: const EdgeInsets.all(12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _finalizeBill,
+                      icon: const Icon(Icons.print, color: Colors.white, size: 20),
+                      label: const Text(
+                        "PRINT & SAVE",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.textBlack,
+                        minimumSize: const Size(0, 56),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
+
