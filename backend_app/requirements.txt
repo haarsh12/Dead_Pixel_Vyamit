@@ -1,0 +1,35 @@
+# ============================================
+# BACKEND DEPENDENCIES
+# ============================================
+
+# ---- Core Framework ----
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+python-multipart==0.0.12
+
+# ---- Database ----
+sqlmodel==0.0.22
+psycopg2-binary==2.9.9
+pgvector==0.3.5
+alembic==1.13.3
+
+# ---- Authentication & Security ----
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-dotenv==1.0.1
+
+# ---- AI/ML APIs ----
+google-generativeai==0.8.3
+mistralai==1.2.3
+
+# ---- Communication ----
+requests==2.32.3
+
+# ---- Utilities ----
+pydantic==2.9.2
+pydantic-settings==2.5.2
+
+# ---- Optional: For RAG admin features ----
+# Uncomment if you need advanced analytics or embedding utilities
+# numpy==1.26.4
+# scikit-learn==1.5.2

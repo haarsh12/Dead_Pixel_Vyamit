@@ -1,85 +1,131 @@
+"""
+Main Application Entry Point
+FastAPI backend with clean architecture
+"""
 import os
+import logging
 from dotenv import load_dotenv
-
-# Load environment variables from .env file
-load_dotenv()
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-from app.db.database import create_db_and_tables
-from app.api import auth, items, voice, voice_inventory, sms_share, analytics, rag_voice
 
-# Conditional RAG admin import - gracefully handle missing numpy/torch
-try:
-    from app.api import rag_admin
-    RAG_ADMIN_AVAILABLE = True
-except ImportError as e:
-    print(f"[WARN] RAG admin features unavailable: {e}")
-    print("[INFO] Install requirements-rag.txt to enable RAG admin features")
-    RAG_ADMIN_AVAILABLE = False
-    rag_admin = None
+# Load environment variables
+load_dotenv()
 
-# NOTE: vector_search and sequential_llm disabled to save memory
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
 
-# CORS - allow frontend to call API (set FRONTEND_URL in Render for production)
+# Import database
+from db.database import create_db_and_tables
+
+# Import API routers
+from api import auth
+# TODO: Import remaining routers when created
+# from api import items, analytics, rag
+
+# CORS configuration
 ALLOWED_ORIGINS = os.getenv("FRONTEND_URL", "http://localhost:3000").split(",")
+# Add local development origins
 for origin in ["http://localhost:8080", "http://127.0.0.1:3000", "http://127.0.0.1:8080"]:
     if origin not in ALLOWED_ORIGINS:
         ALLOWED_ORIGINS.append(origin)
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("Startup: Checking database connection...")
+    """Application lifespan manager"""
+    logger.info("=" * 60)
+    logger.info("APPLICATION STARTUP")
+    logger.info("=" * 60)
+    
+    # Initialize database
     try:
         create_db_and_tables()
-        print("[OK] Database connected successfully.")
+        logger.info("[OK] Database initialized successfully")
     except Exception as e:
-        print(f"[WARN] Database connection failed: {str(e)[:100]}")
-        print("[WARN] Server will start but database operations will fail.")
-        print("[TIP] See DATABASE_CONNECTION_FIX.md or set DATABASE_URL in the host environment.")
+        logger.error(f"[ERROR] Database initialization failed: {e}")
+        logger.warning("[WARN] Server starting but database operations will fail")
     
-    # Vector Search Service - DISABLED for 512MB RAM deployments
-    print("[INFO] Vector search disabled to conserve memory (512MB limit)")
-    print("[TIP] Upgrade to 1GB+ RAM plan to enable ML-based vector search")
+    # Initialize embedding pipeline (lazy loading)
+    try:
+        from pipeline import embedding_pipeline
+        logger.info("[OK] Embedding pipeline ready (lazy loading)")
+    except Exception as e:
+        logger.error(f"[ERROR] Embedding pipeline initialization failed: {e}")
+    
+    logger.info("=" * 60)
+    logger.info("APPLICATION READY")
+    logger.info("=" * 60)
     
     yield
-    print("Shutdown: Closing connections...")
+    
+    logger.info("=" * 60)
+    logger.info("APPLICATION SHUTDOWN")
+    logger.info("=" * 60)
 
-app = FastAPI(lifespan=lifespan, title="SnapBill API", version="1.0.0")
 
-# CORS middleware - Allow all origins for mobile app (production)
+# Create FastAPI application
+app = FastAPI(
+    title="MyKirana Backend API",
+    version="2.0.0",
+    description="Clean backend architecture with Gemini embeddings and proper pipelines",
+    lifespan=lifespan
+)
+
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for mobile app
+    allow_origins=["*"],  # Allow all for mobile app
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Include routers
 app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
-app.include_router(items.router, prefix="/items", tags=["Inventory"])
-app.include_router(voice.router, prefix="/voice", tags=["Voice AI"])
-app.include_router(voice_inventory.router, prefix="/inventory", tags=["Voice Inventory"])
-app.include_router(sms_share.router, prefix="/sms", tags=["SMS Sharing"])
-app.include_router(analytics.router, prefix="/analytics", tags=["Analytics & Dashboard"])
-app.include_router(rag_voice.router, prefix="/rag", tags=["RAG Voice AI - Production"])
+# TODO: Include remaining routers
+# app.include_router(items.router, prefix="/items", tags=["Inventory"])
+# app.include_router(analytics.router, prefix="/analytics", tags=["Analytics"])
+# app.include_router(rag.router, prefix="/rag", tags=["RAG Voice AI"])
 
-# Conditionally include RAG admin router if available
-if RAG_ADMIN_AVAILABLE:
-    app.include_router(rag_admin.router, prefix="/rag/admin", tags=["RAG Admin & Maintenance"])
-    print("[OK] RAG Admin endpoints enabled")
-else:
-    print("[INFO] RAG Admin endpoints disabled (install requirements-rag.txt to enable)")
-
-# vector_search and sequential_llm routers disabled (memory optimization)
 
 @app.get("/")
 def root():
-    return {"status": "active", "system": "SnapBill Backend"}
+    """Root endpoint"""
+    return {
+        "status": "active",
+        "system": "MyKirana Backend",
+        "version": "2.0.0"
+    }
 
 
 @app.get("/health")
 def health_check():
-    """Load balancer / Render health check (no DB probe — keeps checks fast)."""
+    """Health check endpoint for load balancers"""
     return {"status": "ok"}
+
+
+@app.get("/info")
+def system_info():
+    """System information endpoint"""
+    return {
+        "version": "2.0.0",
+        "embedding_provider": "gemini",
+        "embedding_dimension": 768,
+        "database": "postgresql+pgvector"
+    }
+
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=port,
+        reload=True
+    )
