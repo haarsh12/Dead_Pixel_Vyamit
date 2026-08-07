@@ -5,7 +5,7 @@ SECTION 1 — Project Overview
 
 1.2 High-Level Architecture
 The application follows a Clean Architecture principle, utilizing the Provider pattern for state management. It separates the Codebase into three distinct layers:
-
+ss
 Presentation Layer (UI): Screens and Widgets.
 
 Domain Layer (Providers/Models): Business logic and State.
