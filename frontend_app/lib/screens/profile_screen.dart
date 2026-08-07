@@ -24,6 +24,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   late TextEditingController _addressCtrl;
   late TextEditingController _phone1Ctrl;
   late TextEditingController _phone2Ctrl;
+  late TextEditingController _medicalRegistrationCtrl;
+  late TextEditingController _qualificationsCtrl;
   late String _selectedShopCategory;
 
   // Edit State Triggers
@@ -34,6 +36,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     'ph1': false,
     'ph2': false,
     'category': false,
+    'medicalRegistration': false,
+    'qualifications': false,
   };
 
   // Settings State
@@ -65,8 +69,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _addressCtrl = TextEditingController(text: details.address);
     _phone1Ctrl = TextEditingController(text: details.phone1);
     _phone2Ctrl = TextEditingController(text: details.phone2);
+    _medicalRegistrationCtrl =
+        TextEditingController(text: details.medicalRegistrationNumber);
+    _qualificationsCtrl = TextEditingController(text: details.qualifications);
     _selectedShopCategory = canonicalShopCategory(details.shopCategory);
-    
+
     // Load QR code from BillProvider
     final billProvider = Provider.of<BillProvider>(context, listen: false);
     _uploadedQrPath = billProvider.qrCodePath;
@@ -105,6 +112,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (key == 'address') current.address = _addressCtrl.text;
         if (key == 'ph2') current.phone2 = _phone2Ctrl.text;
         if (key == 'category') current.shopCategory = _selectedShopCategory;
+        if (key == 'medicalRegistration') {
+          current.medicalRegistrationNumber = _medicalRegistrationCtrl.text;
+        }
+        if (key == 'qualifications') {
+          current.qualifications = _qualificationsCtrl.text;
+        }
 
         // Force UI rebuild to reflect changes in Preview
         setState(() {});
@@ -128,6 +141,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         address: _addressCtrl.text.trim(),
         phone2: _phone2Ctrl.text.trim(),
         shopCategory: _selectedShopCategory,
+        medicalRegistrationNumber:
+            _selectedShopCategory == 'Doctor Prescription'
+                ? _medicalRegistrationCtrl.text.trim()
+                : null,
+        qualifications: _selectedShopCategory == 'Doctor Prescription'
+            ? _qualificationsCtrl.text.trim()
+            : null,
       );
 
       // Show success message
@@ -148,6 +168,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _isEditing['address'] = false;
         _isEditing['ph2'] = false;
         _isEditing['category'] = false;
+        _isEditing['medicalRegistration'] = false;
+        _isEditing['qualifications'] = false;
       });
     } catch (e) {
       // Show error message
@@ -174,10 +196,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         // Save to BillProvider for persistence
         final billProvider = Provider.of<BillProvider>(context, listen: false);
         await billProvider.saveQrCode(image.path);
-        
+
         setState(() => _uploadedQrPath = image.path);
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text("QR Code Uploaded & Saved!")));
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("QR Code Uploaded & Saved!")));
       }
     } catch (e) {
       ScaffoldMessenger.of(context)
@@ -216,6 +238,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   @override
+  void dispose() {
+    _shopNameCtrl.dispose();
+    _ownerNameCtrl.dispose();
+    _addressCtrl.dispose();
+    _phone1Ctrl.dispose();
+    _phone2Ctrl.dispose();
+    _medicalRegistrationCtrl.dispose();
+    _qualificationsCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     // Get Real-time Data for Preview
     final details = Provider.of<AuthProvider>(context).shopDetails ??
@@ -226,6 +260,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             phone1: "",
             phone2: "",
             shopCategory: "General");
+
+    final isDoctor = _selectedShopCategory == 'Doctor Prescription';
 
     // Preview Items Data
     final previewItems = [
@@ -291,7 +327,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text("Shop Details",
+                        Text(isDoctor ? "Doctor Profile" : "Shop Details",
                             style: TextStyle(
                                 fontSize: 18, fontWeight: FontWeight.bold)),
                         // NEW: Save Button
@@ -325,9 +361,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             padding: const EdgeInsets.all(16),
                             child: Column(children: [
                               _buildEditableField(
-                                  "Shop Name", _shopNameCtrl, 'shop'),
+                                  isDoctor
+                                      ? "Clinic / Practice Name"
+                                      : "Shop Name",
+                                  _shopNameCtrl,
+                                  'shop'),
                               _buildEditableField(
-                                  "Owner Name", _ownerNameCtrl, 'owner'),
+                                  isDoctor ? "Doctor Name" : "Owner Name",
+                                  _ownerNameCtrl,
+                                  'owner'),
                               _buildEditableField(
                                   "Address", _addressCtrl, 'address'),
                               _buildEditableField(
@@ -337,6 +379,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   "Phone 2 (Optional)", _phone2Ctrl, 'ph2',
                                   isPhone: true),
                               _buildShopCategoryRow(),
+                              if (isDoctor) ...[
+                                const Divider(height: 28),
+                                const Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    'Professional credentials',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                                _buildEditableField(
+                                  'Medical Registration Number',
+                                  _medicalRegistrationCtrl,
+                                  'medicalRegistration',
+                                ),
+                                _buildEditableField(
+                                  'Qualifications',
+                                  _qualificationsCtrl,
+                                  'qualifications',
+                                ),
+                                const Padding(
+                                  padding: EdgeInsets.only(top: 4),
+                                  child: Text(
+                                    'A medical registration number is required before a prescription can be printed.',
+                                    style: TextStyle(
+                                      color: Colors.deepOrange,
+                                      fontSize: 12,
+                                      height: 1.35,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ]))),
                     const SizedBox(height: 30),
 
@@ -521,9 +597,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: Icon(
                     isEditing ? Icons.check : Icons.edit,
                     size: 18,
-                    color: isEditing
-                        ? AppColors.primaryGreen
-                        : Colors.grey,
+                    color: isEditing ? AppColors.primaryGreen : Colors.grey,
                   ),
                 ),
               ),

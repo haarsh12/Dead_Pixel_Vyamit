@@ -165,7 +165,9 @@ def verify_otp(
             owner_name=user.owner_name,
             address=user.address,
             phone2=user.phone2,
-            shop_category=stored_category(user.shop_category)
+            shop_category=stored_category(user.shop_category),
+            medical_registration_number=user.medical_registration_number,
+            qualifications=user.qualifications,
         )
         
     except HTTPException:
@@ -200,6 +202,8 @@ def get_profile(
         "address": user.address,
         "phone2": user.phone2,
         "shop_category": stored_category(user.shop_category),
+        "medical_registration_number": user.medical_registration_number,
+        "qualifications": user.qualifications,
         "created_at": user.created_at,
         "is_active": user.is_active
     }
@@ -232,6 +236,10 @@ def update_profile(
         user.phone2 = request.phone2
     if request.shop_category is not None:
         user.shop_category = _validated_category_or_422(request.shop_category)
+    if request.medical_registration_number is not None:
+        user.medical_registration_number = request.medical_registration_number
+    if request.qualifications is not None:
+        user.qualifications = request.qualifications
     user.updated_at = datetime.utcnow()
     
     session.add(user)
@@ -251,4 +259,6 @@ def update_profile(
         "address": user.address,
         "phone2": user.phone2,
         "shop_category": stored_category(user.shop_category),
+        "medical_registration_number": user.medical_registration_number,
+        "qualifications": user.qualifications,
     }

@@ -43,7 +43,8 @@ class CategoryExperience {
     this.showsSharedDashboard = true,
   });
 
-  bool get hasInventory => pages.any((page) => page.type == CategoryPageType.inventory);
+  bool get hasInventory =>
+      pages.any((page) => page.type == CategoryPageType.inventory);
 
   static CategoryExperience forCategory(String? category) =>
       _experiences[canonicalShopCategory(category)] ?? _experiences['Other']!;
@@ -70,50 +71,107 @@ class CategoryExperience {
   );
   static const _pastRecordsPage = CategoryPageDefinition(
     type: CategoryPageType.pastRecords,
-    label: 'Records',
-    icon: Icons.folder_copy_rounded,
+    label: 'History',
+    icon: Icons.history_rounded,
   );
 
   static const Map<String, CategoryExperience> _experiences = {
     // The existing five-page Kirana experience is intentionally preserved.
     'Kirana': CategoryExperience(
       category: 'Kirana',
-      inventoryGroups: ['Anaaj', 'Atta', 'Dal', 'Masale', 'Tel', 'Dry Fruits', 'Upvas', 'Other'],
+      inventoryGroups: [
+        'Anaaj',
+        'Atta',
+        'Dal',
+        'Masale',
+        'Tel',
+        'Dry Fruits',
+        'Upvas',
+        'Other'
+      ],
       pages: [_voicePage, _inventoryPage, _frequentBillingPage],
     ),
     'Fast Food': CategoryExperience(
       category: 'Fast Food',
-      inventoryGroups: ['Meals', 'Snacks', 'Beverages', 'Combos', 'Add-ons', 'Other'],
+      inventoryGroups: [
+        'Meals',
+        'Snacks',
+        'Beverages',
+        'Combos',
+        'Add-ons',
+        'Other'
+      ],
       pages: [_voicePage, _inventoryPage, _frequentBillingPage],
     ),
     'Dairy': CategoryExperience(
       category: 'Dairy',
-      inventoryGroups: ['Milk & Dairy', 'FMCG', 'Beverages', 'Fresh Products', 'Other'],
+      inventoryGroups: [
+        'Milk & Dairy',
+        'FMCG',
+        'Beverages',
+        'Fresh Products',
+        'Other'
+      ],
       pages: [_voicePage, _inventoryPage, _frequentBillingPage],
     ),
     'Hardware': CategoryExperience(
       category: 'Hardware',
-      inventoryGroups: ['Tools', 'Fasteners', 'Plumbing', 'Electrical', 'Paint', 'Other'],
+      inventoryGroups: [
+        'Tools',
+        'Fasteners',
+        'Plumbing',
+        'Electrical',
+        'Paint',
+        'Other'
+      ],
       pages: [_voicePage, _inventoryPage],
     ),
     'Stationery': CategoryExperience(
       category: 'Stationery',
-      inventoryGroups: ['Writing', 'Paper', 'Notebooks', 'Office Supplies', 'Art & Craft', 'Other'],
+      inventoryGroups: [
+        'Writing',
+        'Paper',
+        'Notebooks',
+        'Office Supplies',
+        'Art & Craft',
+        'Other'
+      ],
       pages: [_voicePage, _inventoryPage],
     ),
     'Pharmacy': CategoryExperience(
       category: 'Pharmacy',
-      inventoryGroups: ['Medicines', 'FMCG', 'Personal Care', 'First Aid', 'Wellness', 'Other'],
+      inventoryGroups: [
+        'Medicines',
+        'FMCG',
+        'Personal Care',
+        'First Aid',
+        'Wellness',
+        'Other'
+      ],
       pages: [_voicePage, _inventoryPage],
     ),
     'General': CategoryExperience(
       category: 'General',
-      inventoryGroups: ['Daily Essentials', 'FMCG', 'Household', 'Snacks', 'Personal Care', 'Other'],
+      inventoryGroups: [
+        'Daily Essentials',
+        'FMCG',
+        'Household',
+        'Snacks',
+        'Personal Care',
+        'Other'
+      ],
       pages: [_voicePage, _inventoryPage],
     ),
     'Clothing': CategoryExperience(
       category: 'Clothing',
-      inventoryGroups: ['Men', 'Women', 'Kids', 'Accessories', 'Footwear', 'Other'],
+      inventoryGroups: [
+        'Men',
+        'Women',
+        'Kids',
+        'Accessories',
+        'Footwear',
+        'Other'
+      ],
       pages: [_voicePage, _inventoryPage],
     ),
     'Other': CategoryExperience(
@@ -121,12 +179,17 @@ class CategoryExperience {
       inventoryGroups: ['Items', 'Other'],
       pages: [_voicePage, _inventoryPage],
     ),
-    // Doctor mode deliberately omits Dashboard and inventory. Its Patient
-    // History and Past Records pages are layout-only until clinical features
-    // receive their own authorised, audited data model.
+    // Doctor mode deliberately omits retail Dashboard and inventory. It owns
+    // a separate voice-to-prescription flow, patient directory, and history.
     'Doctor Prescription': CategoryExperience(
       category: 'Doctor Prescription',
-      inventoryGroups: ['Prescriptions', 'Consultation', 'Lab Tests', 'Procedures', 'Other'],
+      inventoryGroups: [
+        'Prescriptions',
+        'Consultation',
+        'Lab Tests',
+        'Procedures',
+        'Other'
+      ],
       pages: [_voicePage, _patientHistoryPage, _pastRecordsPage],
       showsSharedDashboard: false,
     ),

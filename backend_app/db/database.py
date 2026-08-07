@@ -73,6 +73,7 @@ def create_db_and_tables():
         # so the helper simply returns and SQLModel creates it from the model.
         _ensure_category_scoped_inventory_schema()
         _ensure_category_scoped_sales_context_schema()
+        _ensure_doctor_prescription_schema()
         SQLModel.metadata.create_all(engine)
         print("[OK] Database tables created successfully")
     except Exception as e:
@@ -201,6 +202,29 @@ def _ensure_category_scoped_sales_context_schema() -> None:
                 )
             )
     print("[OK] Category-scoped sales context migration applied")
+
+
+def _ensure_doctor_prescription_schema() -> None:
+    """Add doctor-only profile fields to existing PostgreSQL users tables.
+
+    SQLModel creates the separate prescription tables on a new deployment.
+    This guard covers upgrades before API code attempts to read the two new
+    profile fields.
+    """
+    if engine is None or engine.dialect.name != "postgresql":
+        return
+    inspector = inspect(engine)
+    if "users" not in inspector.get_table_names():
+        return
+    columns = {column["name"] for column in inspector.get_columns("users")}
+    with engine.begin() as connection:
+        if "medical_registration_number" not in columns:
+            connection.execute(
+                text("ALTER TABLE users ADD COLUMN medical_registration_number VARCHAR(100)")
+            )
+        if "qualifications" not in columns:
+            connection.execute(text("ALTER TABLE users ADD COLUMN qualifications VARCHAR(500)"))
+    print("[OK] Doctor prescription profile migration applied")
 
 
 def get_session() -> Generator[Session, None, None]:

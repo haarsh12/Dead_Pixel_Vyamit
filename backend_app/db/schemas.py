@@ -61,6 +61,8 @@ class TokenResponse(BaseModel):
     address: Optional[str] = None
     phone2: Optional[str] = None
     shop_category: str = "General"
+    medical_registration_number: Optional[str] = None
+    qualifications: Optional[str] = None
 
 
 class UpdateProfileRequest(BaseModel):
@@ -70,6 +72,16 @@ class UpdateProfileRequest(BaseModel):
     address: Optional[str] = None
     phone2: Optional[str] = None
     shop_category: Optional[str] = None
+    medical_registration_number: Optional[str] = Field(default=None, max_length=100)
+    qualifications: Optional[str] = Field(default=None, max_length=500)
+
+    @field_validator("medical_registration_number", "qualifications")
+    @classmethod
+    def strip_optional_text(cls, value: Optional[str]) -> Optional[str]:
+        # Keep an explicitly submitted empty string.  This lets a doctor
+        # remove an outdated registration number and automatically blocks
+        # future prescription printing until a valid replacement is saved.
+        return value.strip() if value is not None else None
 
 
 # ---- Item Schemas ----

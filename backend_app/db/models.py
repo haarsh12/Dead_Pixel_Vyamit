@@ -26,6 +26,10 @@ class User(TimestampModel, table=True):
     address: Optional[str] = None
     phone2: Optional[str] = None  # Secondary phone (editable)
     shop_category: str = Field(default="General", index=True)
+    # Used only by Doctor Prescription mode.  The server snapshots these on
+    # print so the client cannot impersonate another clinician.
+    medical_registration_number: Optional[str] = Field(default=None, max_length=100)
+    qualifications: Optional[str] = Field(default=None, max_length=500)
     is_active: bool = Field(default=True)
     role: str = Field(default="owner")
 
@@ -187,4 +191,50 @@ class Customer(TimestampModel, table=True):
             postgresql_with={"lists": 100},
             postgresql_ops={"embedding": "vector_cosine_ops"}
         ),
+    )
+
+
+class DoctorPatient(TimestampModel, table=True):
+    """Doctor-owned directory entry, created only after the doctor consents."""
+    __tablename__ = "doctor_patients"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    owner_id: int = Field(foreign_key="users.id", index=True)
+    full_name: str = Field(index=True, max_length=120)
+    age: Optional[int] = Field(default=None, ge=0, le=130)
+    gender: Optional[str] = Field(default=None, max_length=30)
+    phone_number: Optional[str] = Field(default=None, max_length=20)
+
+    __table_args__ = (
+        Index("idx_doctor_patients_owner_name", "owner_id", "full_name"),
+    )
+
+
+class DoctorPrescription(TimestampModel, table=True):
+    """Immutable doctor-owned record, created only once its print succeeds."""
+    __tablename__ = "doctor_prescriptions"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    owner_id: int = Field(foreign_key="users.id", index=True)
+    patient_id: Optional[int] = Field(default=None, foreign_key="doctor_patients.id", index=True)
+
+    # Snapshots protect the historical record from later profile edits.
+    patient_name: str = Field(max_length=120)
+    patient_age: Optional[int] = Field(default=None, ge=0, le=130)
+    patient_gender: Optional[str] = Field(default=None, max_length=30)
+    patient_phone: Optional[str] = Field(default=None, max_length=20)
+    diagnosis: Optional[str] = Field(default=None, max_length=500)
+    additional_notes: Optional[str] = Field(default=None, max_length=1500)
+    medications_json: str
+
+    doctor_name: str = Field(max_length=120)
+    doctor_qualifications: Optional[str] = Field(default=None, max_length=500)
+    medical_registration_number: str = Field(max_length=100)
+    signature_json: Optional[str] = Field(default=None, max_length=20000)
+    prescribed_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    printed_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+
+    __table_args__ = (
+        Index("idx_doctor_prescriptions_owner_printed", "owner_id", "printed_at"),
+        Index("idx_doctor_prescriptions_patient_printed", "patient_id", "printed_at"),
     )

@@ -5,7 +5,9 @@ import '../../models/shop_details.dart';
 import '../../screens/frequent_billing_screen.dart';
 import '../../screens/inventory_screen.dart';
 import '../../screens/voice_assistant_screen.dart';
-import '../doctor_prescription/doctor_record_workspace_screen.dart';
+import '../doctor_prescription/doctor_patient_list_screen.dart';
+import '../doctor_prescription/doctor_prescription_history_screen.dart';
+import '../doctor_prescription/doctor_voice_screen.dart';
 import 'category_experience.dart';
 
 class CategoryPageBundle {
@@ -54,7 +56,8 @@ class CategoryPageFactory {
         ),
       );
       navigationItems.add(
-        BottomNavigationBarItem(icon: Icon(definition.icon), label: definition.label),
+        BottomNavigationBarItem(
+            icon: Icon(definition.icon), label: definition.label),
       );
     }
 
@@ -79,8 +82,15 @@ class CategoryPageFactory {
   }) {
     switch (definition.type) {
       case CategoryPageType.voice:
-        // Reuse the Kirana voice surface verbatim, including its live input
-        // circle. The server, not this widget, chooses the inventory scope.
+        if (experience.category == 'Doctor Prescription') {
+          return DoctorVoiceScreen(
+            key: const ValueKey('doctor-prescription-voice'),
+            shopDetails: shopDetails,
+            isPrinterConnected: isPrinterConnected,
+            togglePrinter: togglePrinter,
+          );
+        }
+        // Retail categories keep the shared inventory-aware billing surface.
         return VoiceAssistantScreen(
           key: ValueKey('voice-${experience.category}'),
           shopDetails: shopDetails,
@@ -108,9 +118,9 @@ class CategoryPageFactory {
           onDelete: onDeleteFrequentItem,
         );
       case CategoryPageType.patientHistory:
-        return const DoctorRecordWorkspaceScreen.patientHistory();
+        return const DoctorPatientListScreen();
       case CategoryPageType.pastRecords:
-        return const DoctorRecordWorkspaceScreen.pastRecords();
+        return const DoctorPrescriptionHistoryScreen();
     }
   }
 }

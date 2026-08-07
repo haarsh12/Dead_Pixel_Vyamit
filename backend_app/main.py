@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 from db.database import create_db_and_tables, database_is_configured
 
 # Import API routers
-from api import analytics, auth, items, rag, sms, voice, voice_inventory
+from api import analytics, auth, doctor_prescriptions, items, rag, sms, voice, voice_inventory
 
 # CORS configuration.  Browsers reject wildcard origins when credentials are
 # allowed, so use an explicit, configurable allow-list instead.
@@ -92,6 +92,11 @@ app.include_router(rag.router, prefix="/rag", tags=["RAG Voice AI"])
 app.include_router(sms.router, prefix="/sms", tags=["SMS"])
 app.include_router(voice.router, prefix="/voice", tags=["Voice AI"])
 app.include_router(voice_inventory.router, prefix="/inventory", tags=["Voice Inventory"])
+app.include_router(
+    doctor_prescriptions.router,
+    prefix="/doctor-prescriptions",
+    tags=["Doctor Prescriptions"],
+)
 
 
 @app.get("/")

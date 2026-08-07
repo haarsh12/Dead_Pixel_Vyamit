@@ -1,0 +1,287 @@
+================================================================================
+API ISSUES ANALYSIS & SOLUTIONS
+================================================================================
+
+FAILING ENDPOINTS:
+------------------
+1. GET /items/ → 403 Forbidden
+2. POST /auth/send-otp → 404 Not Found  
+3. POST /auth/send-otp → 422 Unprocessable Entity
+
+================================================================================
+ISSUE 1: GET /items/ → 403 Forbidden
+================================================================================
+
+CAUSE:
+------
+The endpoint requires authentication and returns 403 when:
+- User token is invalid or expired
+- User account is inactive (is_active = False)
+- User not found in database
+
+CODE LOCATION:
+--------------
+File: backend_app/api/items.py
+Function: _active_inventory_scope()
+
+Lines 35-41:
+    user = session.get(User, user_id)
+    if user is None or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is unavailable",
+        )
+
+SOLUTION:
+---------
+✅ Check user authentication token
+✅ Verify user account is active
+✅ Re-login if token expired
+
+HOW TO FIX:
+1. User should login again to get fresh token
+2. Check if user account is active in database
+3. Verify token is being sent in Authorization header:
+   Authorization: Bearer <token>
+
+================================================================================
+ISSUE 2: POST /auth/send-otp → 404 Not Found
+================================================================================
+
+CAUSE:
+------
+Possible causes:
+1. Trailing slash mismatch (/auth/send-otp vs /auth/send-otp/)
+2. Server not running
+3. Wrong base URL
+
+CODE LOCATION:
+--------------
+File: backend_app/api/auth.py
+Line 45: @router.post("/send-otp", status_code=status.HTTP_200_OK)
+
+Registered in main.py:
+Line 88: app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
+
+Expected URL: POST http://localhost:8000/auth/send-otp
+
+SOLUTION:
+---------
+✅ Use correct URL without trailing slash
+✅ Verify server is running
+✅ Check CORS settings if calling from Flutter app
+
+HOW TO FIX:
+1. Ensure URL is: POST /auth/send-otp (no trailing slash)
+2. Check server logs for route registration
+3. Test in browser: http://localhost:8000/docs
+
+================================================================================
+ISSUE 3: POST /auth/send-otp → 422 Unprocessable Entity
+================================================================================
+
+CAUSE:
+------
+Request body doesn't match the required schema.
+
+REQUIRED SCHEMA:
+----------------
+{
+  "phone_number": "string",  // 10-15 chars, valid Indian number
+  "is_login": boolean        // default: true
+}
+
+VALIDATION RULES:
+-----------------
+1. phone_number must be 10-15 characters
+2. Must be valid Indian mobile number (starts with 6-9, 10 digits)
+3. Formats accepted:
+   - "9876543210"
+   - "+919876543210"
+   - "919876543210"
+4. Invalid formats:
+   - "123" (too short)
+   - "1234567890" (doesn't start with 6-9)
+   - "abc1234567" (contains letters)
+
+CODE LOCATION:
+--------------
+File: backend_app/db/schemas.py
+Lines 17-29: OTPRequest schema with validation
+
+COMMON MISTAKES:
+----------------
+❌ Missing phone_number field
+❌ Phone number too short (< 10 digits)
+❌ Invalid Indian number (doesn't start with 6-9)
+❌ Special characters in phone number
+❌ Missing required fields
+
+SOLUTION:
+---------
+✅ Send valid phone number
+✅ Include is_login field
+✅ Use proper JSON format
+
+VALID EXAMPLES:
+---------------
+Example 1 (Login):
+{
+  "phone_number": "9876543210",
+  "is_login": true
+}
+
+Example 2 (Register):
+{
+  "phone_number": "+919876543210",
+  "is_login": false
+}
+
+Example 3 (With country code):
+{
+  "phone_number": "919876543210",
+  "is_login": false
+}
+
+INVALID EXAMPLES:
+-----------------
+❌ {
+  "phone_number": "123",
+  "is_login": true
+}
+Error: Phone number too short
+
+❌ {
+  "phone_number": "1234567890",
+  "is_login": true
+}
+Error: Must start with 6-9 (valid Indian mobile)
+
+❌ {
+  "phone": "9876543210",
+  "is_login": true
+}
+Error: Field name must be "phone_number" not "phone"
+
+================================================================================
+TESTING GUIDE
+================================================================================
+
+STEP 1: Run Diagnostic Script
+------------------------------
+cd backend_app
+python test_api_issues.py
+
+This will test all failing endpoints and show detailed error messages.
+
+STEP 2: Check API Documentation
+--------------------------------
+Open browser: http://localhost:8000/docs
+
+1. Look for /auth/send-otp endpoint
+2. Click "Try it out"
+3. Fill in sample request:
+   {
+     "phone_number": "9876543210",
+     "is_login": false
+   }
+4. Click "Execute"
+5. Check response
+
+STEP 3: Test with cURL
+-----------------------
+Test send-otp:
+curl -X POST "http://localhost:8000/auth/send-otp" \
+  -H "Content-Type: application/json" \
+  -d '{"phone_number": "9876543210", "is_login": false}'
+
+Test get items (requires token):
+curl -X GET "http://localhost:8000/items/" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+
+STEP 4: Check Server Logs
+--------------------------
+Look for detailed error messages in server console output.
+Server logs will show:
+- Validation errors
+- Authentication failures
+- Database errors
+
+================================================================================
+FLUTTER APP FIXES
+================================================================================
+
+If calling from Flutter app, check:
+
+1. CORRECT URL FORMAT
+   ✅ http://192.168.110.144:8000/auth/send-otp
+   ❌ http://192.168.110.144:8000/auth/send-otp/ (trailing slash)
+
+2. CORRECT REQUEST BODY
+   {
+     "phone_number": "9876543210",
+     "is_login": true  // or false
+   }
+
+3. HEADERS
+   Content-Type: application/json
+   Authorization: Bearer <token> (for protected endpoints)
+
+4. ERROR HANDLING
+   - Check response.statusCode
+   - Parse error messages from response body
+   - Show user-friendly error messages
+
+================================================================================
+QUICK FIX CHECKLIST
+================================================================================
+
+For 403 Forbidden on /items/:
+□ User logged in with valid token?
+□ Token included in Authorization header?
+□ User account active in database?
+□ Token not expired?
+
+For 404 on /auth/send-otp:
+□ Correct URL (no trailing slash)?
+□ Server running on correct port?
+□ Using POST method (not GET)?
+□ CORS configured correctly?
+
+For 422 on /auth/send-otp:
+□ Phone number field named "phone_number"?
+□ Phone number 10 digits starting with 6-9?
+□ is_login field included?
+□ Valid JSON format?
+□ Content-Type: application/json header?
+
+================================================================================
+IMMEDIATE ACTION ITEMS
+================================================================================
+
+1. Run diagnostic script:
+   cd backend_app && python test_api_issues.py
+
+2. Check server is running:
+   - Open http://localhost:8000/docs
+   - Verify /auth/send-otp appears in list
+
+3. Test with valid phone number:
+   Use Flutter app or Postman to send:
+   POST /auth/send-otp
+   {
+     "phone_number": "9876543210",
+     "is_login": false
+   }
+
+4. For 403 errors:
+   - User must login again
+   - Check user.is_active in database
+   - Verify token is valid
+
+5. Review server logs:
+   - Look for specific error messages
+   - Check if routes are registered
+   - Verify database connection
+
+================================================================================

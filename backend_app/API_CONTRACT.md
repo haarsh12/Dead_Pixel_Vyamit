@@ -14,6 +14,9 @@ non-public route requires `Authorization: Bearer <access_token>`.
 | Voice inventory | `POST /inventory/voice-parse` | Implemented; Gemini is used when configured and a deterministic parser is available otherwise. |
 | Voice HTTP fallback | `POST /voice/process` | Implemented. |
 | Continuous voice | `WS /voice/ws/stream?token=<JWT>` | Implemented; accepts `process`, `ping`, and `interrupt`. |
+| Doctor prescription voice | `POST /doctor-prescriptions/voice/process`, `WS /doctor-prescriptions/voice/ws/stream?token=<JWT>` | Doctor-only clinical dictation formatter; it is isolated from retail inventory and sales voice processing. |
+| Doctor prescription records | `POST /doctor-prescriptions/printed`, `GET /doctor-prescriptions/history` | Immutable records are created after a successful client-side print and are scoped to the authenticated doctor. |
+| Doctor patients | `GET /doctor-prescriptions/patients`, `GET /doctor-prescriptions/patients/{id}/prescriptions` | The searchable directory is populated only when the doctor approves the post-print save prompt. |
 
 ## WebSocket messages
 
@@ -22,6 +25,11 @@ responds with `connected`, `processing`, zero or more `stream_token` messages,
 and a final `complete` containing the same voice response returned by the HTTP
 fallback. Invalid or expired tokens are rejected; the protocol never accepts a
 client-supplied user id.
+
+Doctor Prescription uses its own WebSocket route and response shape. It is
+available only while the authenticated profile category is `Doctor
+Prescription`; its responses use `Cache-Control: no-store` to avoid caching
+patient data.
 
 ## Runtime configuration
 

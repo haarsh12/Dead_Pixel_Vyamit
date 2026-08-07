@@ -31,6 +31,8 @@ class AuthProvider with ChangeNotifier {
         phone1: data['phone_number'] ?? "",
         phone2: data['phone2'] ?? "", // Load phone2 from storage
         shopCategory: canonicalShopCategory(cat),
+        medicalRegistrationNumber: data['medical_registration_number'] ?? '',
+        qualifications: data['qualifications'] ?? '',
       );
 
       print("DEBUG: Auto-login loaded phone2: ${_shopDetails?.phone2}");
@@ -74,6 +76,9 @@ class AuthProvider with ChangeNotifier {
       final String finalCategory = canonicalShopCategory(
         response['shop_category'] as String? ?? shopCategory,
       );
+      final String medicalRegistrationNumber =
+          response['medical_registration_number'] ?? '';
+      final String qualifications = response['qualifications'] ?? '';
 
       print("DEBUG: Received phone2 from backend: $finalPhone2");
       print("DEBUG: shop_category: $finalCategory");
@@ -90,6 +95,8 @@ class AuthProvider with ChangeNotifier {
         'phone_number': phone,
         'phone2': finalPhone2, // Save phone2 to storage
         'shop_category': finalCategory,
+        'medical_registration_number': medicalRegistrationNumber,
+        'qualifications': qualifications,
       };
       await prefs.setString('user_data', jsonEncode(userData));
 
@@ -101,6 +108,8 @@ class AuthProvider with ChangeNotifier {
         phone1: phone,
         phone2: finalPhone2, // Set phone2 in state
         shopCategory: finalCategory,
+        medicalRegistrationNumber: medicalRegistrationNumber,
+        qualifications: qualifications,
       );
 
       notifyListeners();
@@ -127,6 +136,8 @@ class AuthProvider with ChangeNotifier {
     required String address,
     String? phone2,
     required String shopCategory,
+    String? medicalRegistrationNumber,
+    String? qualifications,
   }) async {
     try {
       print(
@@ -139,6 +150,9 @@ class AuthProvider with ChangeNotifier {
         "address": address,
         "shop_category": shopCategory,
         if (phone2 != null && phone2.isNotEmpty) "phone2": phone2,
+        if (medicalRegistrationNumber != null)
+          "medical_registration_number": medicalRegistrationNumber,
+        if (qualifications != null) "qualifications": qualifications,
       });
 
       print("UPDATE RESPONSE: $response");
@@ -152,6 +166,15 @@ class AuthProvider with ChangeNotifier {
       final String updatedCategory = canonicalShopCategory(
         response['shop_category'] as String? ?? shopCategory,
       );
+      final String updatedMedicalRegistrationNumber =
+          response['medical_registration_number'] ??
+              medicalRegistrationNumber ??
+              _shopDetails?.medicalRegistrationNumber ??
+              '';
+      final String updatedQualifications = response['qualifications'] ??
+          qualifications ??
+          _shopDetails?.qualifications ??
+          '';
 
       // Keep phone1 unchanged (it's read-only)
       String currentPhone1 = _shopDetails?.phone1 ?? "";
@@ -177,6 +200,8 @@ class AuthProvider with ChangeNotifier {
         'phone_number': currentPhone1,
         'phone2': updatedPhone2, // Save updated phone2
         'shop_category': updatedCategory,
+        'medical_registration_number': updatedMedicalRegistrationNumber,
+        'qualifications': updatedQualifications,
       };
       await prefs.setString('user_data', jsonEncode(userData));
 
@@ -188,6 +213,8 @@ class AuthProvider with ChangeNotifier {
         phone1: currentPhone1,
         phone2: updatedPhone2, // Update phone2 in state
         shopCategory: updatedCategory,
+        medicalRegistrationNumber: updatedMedicalRegistrationNumber,
+        qualifications: updatedQualifications,
       );
 
       notifyListeners();
