@@ -77,9 +77,11 @@ Return JSON only with exactly this shape:
 Rules:
 1. This is transcription formatting, not clinical decision support. Never diagnose, recommend, add, substitute, or infer a medicine, dose, frequency, duration, or instruction.
 2. Include only details explicitly dictated by the doctor. Use an empty string or null when a field was not spoken.
-3. Write every output field in clear English and preserve the dictated meaning. Translate a spoken Hindi/Hinglish instruction into clear English only when the wording is unambiguous.
-4. Keep each medicine separate. "timing" should say, for example, "After food", "Before breakfast", or be empty if not stated.
-5. Do not include patient data that was not dictated. Do not return markdown or extra keys.'''
+3. Fill every medication column when, and only when, the doctor dictated it: name, dose, frequency, duration, timing, route and instructions. Keep unknown columns empty; never guess a duration or dose.
+4. Write patient, diagnosis, medicine, dose, frequency, duration, timing and route in clear English. Use values such as "Twice daily", "5 days" and "After food" where the dictated wording is unambiguous.
+5. `instructions` is the visible medicine description. Preserve the doctor's instruction in Latin Hinglish when it was spoken in Hinglish (for example "Khane ke baad din mein do baar"). Do not rewrite it into a different instruction.
+6. Example: for "Paracetamol khane ke baad din mein do baar", return name "Paracetamol", frequency "Twice daily", timing "After food", instructions "Khane ke baad din mein do baar", and duration "" unless a duration was actually spoken.
+7. Keep each medicine separate. Do not include patient data that was not dictated. Do not return markdown or extra keys.'''
 
     def _parse_with_gemini(self, transcription: str) -> Dict[str, Any] | None:
         if not self._get_client():
@@ -125,35 +127,100 @@ Rules:
             diagnosis = diagnosis_match.group(1).strip()[:500]
 
         medications: List[Dict[str, str]] = []
-        medicine_match = re.search(
-            r"\b(?:prescribe|prescribed|give|take)\s+([A-Za-z][A-Za-z0-9 .-]{1,80}?)(?:\s+(\d+(?:\.\d+)?\s*(?:mg|mcg|g|ml|tablet(?:s)?|capsule(?:s)?)))?(?=\s*(?:,|for\b|twice\b|once\b|three\b|after\b|before\b|$))",
+
+        # This deterministic path makes the most common Hinglish dictation
+        # useful even when an LLM is unavailable. It only normalises phrases
+        # that have an unambiguous literal meaning and leaves unspecified
+        # clinical fields blank.
+        frequency = ""
+        frequency_patterns = (
+            (r"\b(?:once daily|one time(?:s)? daily|ek baar(?: roz)?|din mein ek baar)\b", "Once daily"),
+            (r"\b(?:twice daily|two times daily|do baar(?: roz)?|din mein do baar)\b", "Twice daily"),
+            (r"\b(?:three times daily|thrice daily|teen baar(?: roz)?|din mein teen baar)\b", "Three times daily"),
+        )
+        for pattern, label in frequency_patterns:
+            if re.search(pattern, text, re.I):
+                frequency = label
+                break
+        if not frequency:
+            every_hours = re.search(r"\bevery\s+(\d+)\s+hours?\b", text, re.I)
+            if every_hours:
+                frequency = f"Every {every_hours.group(1)} hours"
+
+        timing = ""
+        if re.search(r"\b(?:after\s+(?:food|meal|breakfast|lunch|dinner)|kha?ne\s+ke\s+baad)\b", text, re.I):
+            timing = "After food"
+        elif re.search(r"\b(?:before\s+(?:food|meal|breakfast|lunch|dinner)|kha?ne\s+se\s+pehle)\b", text, re.I):
+            timing = "Before food"
+
+        duration = ""
+        duration_match = re.search(
+            r"\b(?:for\s+)?(\d+)\s*(day|days|week|weeks|month|months|din|haft(?:a|e)|mahine?)\b(?:\s*(?:tak|ke\s+liye))?",
             text,
             re.I,
         )
-        if medicine_match:
-            frequency = ""
-            frequency_match = re.search(r"\b(once daily|twice daily|three times daily|every \d+ hours?)\b", text, re.I)
-            if frequency_match:
-                frequency = frequency_match.group(1).title()
-            duration = ""
-            duration_match = re.search(r"\bfor\s+(\d+\s+(?:day|days|week|weeks|month|months))\b", text, re.I)
-            if duration_match:
-                duration = duration_match.group(1)
-            timing = ""
-            timing_match = re.search(r"\b(before|after)\s+(?:food|meal|breakfast|lunch|dinner)\b", text, re.I)
-            if timing_match:
-                timing = timing_match.group(0).title()
-            medications.append(
-                {
-                    "name": medicine_match.group(1).strip(" ,.")[:120],
-                    "dose": (medicine_match.group(2) or "").strip()[:60],
-                    "frequency": frequency,
-                    "duration": duration,
-                    "timing": timing,
-                    "route": "",
-                    "instructions": "",
-                }
+        if duration_match:
+            count, unit = duration_match.groups()
+            unit = unit.lower()
+            unit = {
+                "din": "day",
+                "hafta": "week",
+                "hafte": "week",
+                "mahina": "month",
+                "mahine": "month",
+            }.get(unit, unit.rstrip("s"))
+            duration = f"{count} {unit}{'' if count == '1' else 's'}"
+
+        dose_match = re.search(
+            r"\b(\d+(?:\.\d+)?\s*(?:mg|mcg|g|ml|tablet(?:s)?|tab(?:s)?|capsule(?:s)?|cap(?:s)?))\b",
+            text,
+            re.I,
+        )
+        dose = dose_match.group(1) if dose_match else ""
+
+        # Prefer an explicitly introduced medicine, then support the natural
+        # short form: "Paracetamol khane ke baad din mein do baar".
+        medicine_source = ""
+        introduced = re.search(
+            r"\b(?:prescribe|prescribed|give|take|medicine(?:\s+name)?\s*(?:is)?|tablet|capsule)\s+(.+)$",
+            text,
+            re.I,
+        )
+        if introduced:
+            medicine_source = introduced.group(1)
+        elif not re.search(r"\b(?:patient|diagnosis|age|phone|mobile)\b", text, re.I):
+            medicine_source = text
+
+        if medicine_source:
+            name_match = re.match(
+                r"\s*([A-Za-z][A-Za-z0-9-]*(?:\s+(?!khane\b|khaane\b|after\b|before\b|for\b|din\b|once\b|twice\b|three\b|teen\b|do\b|every\b|daily\b|\d)[A-Za-z0-9-]+){0,2})",
+                medicine_source,
+                re.I,
             )
+            medicine_name = name_match.group(1).strip(" ,.") if name_match else ""
+            if medicine_name and medicine_name.casefold() not in {"patient", "diagnosis", "medicine"}:
+                instruction_start = len(medicine_name)
+                if dose:
+                    dose_location = medicine_source.lower().find(dose.lower())
+                    if dose_location >= 0:
+                        instruction_start = dose_location + len(dose)
+                instruction = medicine_source[instruction_start:].strip(" ,.;:-")
+                # Remove only a trailing administrative phrase, never a spoken
+                # food/timing instruction.
+                instruction = re.split(r"\b(?:diagnosis|patient name)\b", instruction, flags=re.I)[0].strip()
+                if instruction:
+                    instruction = instruction[0].upper() + instruction[1:]
+                medications.append(
+                    {
+                        "name": medicine_name[:120],
+                        "dose": dose[:60],
+                        "frequency": frequency,
+                        "duration": duration,
+                        "timing": timing,
+                        "route": "",
+                        "instructions": instruction[:400],
+                    }
+                )
         return {
             "patient": patient,
             "diagnosis": diagnosis,

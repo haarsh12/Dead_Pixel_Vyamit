@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/theme.dart';
 import 'services/doctor_prescription_service.dart';
 
 class DoctorPrescriptionHistoryScreen extends StatefulWidget {
@@ -33,45 +34,93 @@ class _DoctorPrescriptionHistoryScreenState
       final records = await _service.history();
       if (mounted) setState(() => _records = records);
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         setState(() => _error = 'Unable to load prescription history.');
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _deleteRecord(Map<String, dynamic> record) async {
+    final prescriptionId = record['id'] as int?;
+    if (prescriptionId == null) return;
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Delete prescription?'),
+            content: const Text(
+                'This removes this prescription from history. It cannot be undone.'),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancel')),
+              FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!confirmed) return;
+    try {
+      await _service.deletePrescription(prescriptionId);
+      if (!mounted) return;
+      setState(() => _records.removeWhere((item) => item['id'] == prescriptionId));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Prescription deleted.')));
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not delete this prescription.')));
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7FAFB),
+      backgroundColor: Colors.white,
       appBar: AppBar(
-          title: const Text('Prescription History'),
-          backgroundColor: Colors.white,
-          foregroundColor: const Color(0xFF17324A)),
+        title: const Text('Prescription History'),
+        backgroundColor: Colors.white,
+        foregroundColor: AppColors.textBlack,
+        elevation: 0,
+      ),
       body: RefreshIndicator(
+        color: AppColors.primaryGreen,
         onRefresh: _load,
         child: _loading
-            ? const Center(child: CircularProgressIndicator())
+            ? const Center(
+                child: CircularProgressIndicator(color: AppColors.primaryGreen))
             : _error != null
                 ? ListView(children: [
                     const SizedBox(height: 160),
                     Center(child: Text(_error!)),
                     Center(
-                        child: TextButton(
-                            onPressed: _load, child: const Text('Try again')))
+                      child: TextButton(onPressed: _load, child: const Text('Try again')),
+                    ),
                   ])
                 : _records.isEmpty
                     ? ListView(children: const [
                         SizedBox(height: 160),
-                        Center(
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 32),
+                          child: Center(
                             child: Text(
-                                'Printed prescriptions will appear here by date and time.'))
+                              'Printed prescriptions will appear here by date and time.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: AppColors.textGrey),
+                            ),
+                          ),
+                        ),
                       ])
                     : ListView.builder(
                         padding: const EdgeInsets.all(16),
                         itemCount: _records.length,
-                        itemBuilder: (_, index) =>
-                            _historyCard(_records[index]),
+                        itemBuilder: (_, index) => _historyCard(_records[index]),
                       ),
       ),
     );
@@ -88,55 +137,82 @@ class _DoctorPrescriptionHistoryScreenState
         ? record['medications'] as List
         : <dynamic>[];
     final date = DateTime.tryParse(record['printed_at']?.toString() ?? '');
+    final dateLabel = date == null
+        ? 'Printed prescription'
+        : DateFormat('dd MMM yyyy • hh:mm a').format(date.toLocal());
+
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       elevation: 0,
-      child: Padding(
-        padding: const EdgeInsets.all(15),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            const Icon(Icons.print_rounded, size: 18, color: Color(0xFF1B7A9B)),
-            const SizedBox(width: 7),
-            Expanded(
-                child: Text(
-                    date == null
-                        ? 'Printed prescription'
-                        : DateFormat('dd MMM yyyy • hh:mm a')
-                            .format(date.toLocal()),
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF1B7A9B)))),
-          ]),
-          const SizedBox(height: 9),
-          Text(patient['name']?.toString() ?? 'Patient',
-              style:
-                  const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: const BorderSide(color: Color(0xFFC8E6C9)),
+      ),
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.fromLTRB(15, 7, 8, 7),
+        childrenPadding: const EdgeInsets.fromLTRB(15, 0, 15, 15),
+        leading: const CircleAvatar(
+          backgroundColor: AppColors.lightGreenBg,
+          foregroundColor: AppColors.primaryGreen,
+          child: Icon(Icons.description_rounded),
+        ),
+        title: Text(patient['name']?.toString() ?? 'Patient',
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        subtitle: Text(dateLabel, style: const TextStyle(color: AppColors.textGrey)),
+        trailing: IconButton(
+          tooltip: 'Delete prescription',
+          onPressed: () => _deleteRecord(record),
+          color: Colors.red.shade700,
+          icon: const Icon(Icons.delete_outline_rounded),
+        ),
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(dateLabel,
+                style: const TextStyle(
+                    fontWeight: FontWeight.w800, color: AppColors.primaryGreen)),
+          ),
           if ((record['diagnosis']?.toString() ?? '').isNotEmpty)
             Padding(
-                padding: const EdgeInsets.only(top: 3),
-                child: Text('Diagnosis: ${record['diagnosis']}')),
-          const Divider(height: 20),
+              padding: const EdgeInsets.only(top: 6),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Diagnosis: ${record['diagnosis']}'),
+              ),
+            ),
+          const Divider(height: 22),
           ...medications.whereType<Map>().map((medicine) {
             final details = [
               medicine['dose'],
               medicine['frequency'],
               medicine['duration'],
-              medicine['timing']
+              medicine['timing'],
             ]
-                .where((value) =>
-                    value != null && value.toString().trim().isNotEmpty)
+                .where((value) => value != null && value.toString().trim().isNotEmpty)
                 .join(' • ');
+            final instruction = medicine['instructions']?.toString().trim() ?? '';
             return Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Text(
-                  '• ${medicine['name'] ?? ''}${details.isEmpty ? '' : ' — $details'}'),
+              padding: const EdgeInsets.only(bottom: 9),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(
+                  '${medicine['name'] ?? ''}${details.isEmpty ? '' : ' — $details'}',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                if (instruction.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(instruction,
+                        style: const TextStyle(color: AppColors.textGrey)),
+                  ),
+              ]),
             );
           }),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Text(
-              'Dr. ${doctor['name'] ?? ''}  •  Reg. ${doctor['medical_registration_number'] ?? ''}',
-              style: const TextStyle(color: Colors.black54, fontSize: 12)),
-        ]),
+            'Dr. ${doctor['name'] ?? ''} • Reg. ${doctor['medical_registration_number'] ?? ''}',
+            style: const TextStyle(color: AppColors.textGrey, fontSize: 12),
+          ),
+        ],
       ),
     );
   }

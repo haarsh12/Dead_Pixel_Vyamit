@@ -98,6 +98,10 @@ class DoctorPrescriptionService {
     return Map<String, dynamic>.from(response as Map);
   }
 
+  Future<void> deletePatient(int patientId) async {
+    await _api.delete('/doctor-prescriptions/patients/$patientId');
+  }
+
   Future<List<Map<String, dynamic>>> history() async {
     final response = await _api.get('/doctor-prescriptions/history');
     final values = response['prescriptions'] is List
@@ -107,5 +111,9 @@ class DoctorPrescriptionService {
         .whereType<Map>()
         .map((value) => Map<String, dynamic>.from(value))
         .toList();
+  }
+
+  Future<void> deletePrescription(int prescriptionId) async {
+    await _api.delete('/doctor-prescriptions/history/$prescriptionId');
   }
 }

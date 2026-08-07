@@ -27,8 +27,9 @@ mistralai==1.2.3
 requests==2.32.3
 
 # ---- Utilities ----
-pydantic==2.9.2
-pydantic-settings==2.5.2
+# Using versions with pre-built wheels (no Rust compilation needed on Render)
+pydantic==2.8.2
+pydantic-settings==2.3.4
 
 # ---- Optional: For RAG admin features ----
 # Uncomment if you need advanced analytics or embedding utilities

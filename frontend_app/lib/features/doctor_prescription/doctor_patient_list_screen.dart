@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/theme.dart';
 import 'services/doctor_prescription_service.dart';
 
 class DoctorPatientListScreen extends StatefulWidget {
@@ -45,6 +46,45 @@ class _DoctorPatientListScreenState extends State<DoctorPatientListScreen> {
     }
   }
 
+  Future<void> _deletePatient(Map<String, dynamic> patient) async {
+    final patientId = patient['id'] as int?;
+    if (patientId == null) return;
+    final name = patient['name']?.toString().trim();
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Delete patient?'),
+            content: Text(
+              'Delete ${name?.isEmpty ?? true ? 'this patient' : name} and all of their saved prescription history? This cannot be undone.',
+            ),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancel')),
+              FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!confirmed) return;
+    try {
+      await _service.deletePatient(patientId);
+      if (!mounted) return;
+      setState(() => _patients.removeWhere((item) => item['id'] == patientId));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Patient deleted.')));
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not delete this patient.')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final groups = <String, List<Map<String, dynamic>>>{};
@@ -54,11 +94,12 @@ class _DoctorPatientListScreenState extends State<DoctorPatientListScreen> {
       groups.putIfAbsent(letter, () => []).add(patient);
     }
     return Scaffold(
-      backgroundColor: const Color(0xFFF7FAFB),
+      backgroundColor: Colors.white,
       appBar: AppBar(
           title: const Text('Patients'),
           backgroundColor: Colors.white,
-          foregroundColor: const Color(0xFF17324A)),
+          foregroundColor: AppColors.textBlack,
+          elevation: 0),
       body: RefreshIndicator(
         onRefresh: _load,
         child: ListView(
@@ -80,10 +121,10 @@ class _DoctorPatientListScreenState extends State<DoctorPatientListScreen> {
                         },
                       ),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: AppColors.lightGreenBg,
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none),
+                    borderSide: const BorderSide(color: Color(0xFFC8E6C9))),
               ),
             ),
             const SizedBox(height: 14),
@@ -104,7 +145,7 @@ class _DoctorPatientListScreenState extends State<DoctorPatientListScreen> {
                           style: const TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.w800,
-                              color: Color(0xFF1B7A9B))),
+                              color: AppColors.primaryGreen))),
                     ),
                     ...entry.value.map((patient) => _patientTile(patient)),
                   ]),
@@ -124,9 +165,14 @@ class _DoctorPatientListScreenState extends State<DoctorPatientListScreen> {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       elevation: 0,
-      child: ListTile(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: const BorderSide(color: Color(0xFFC8E6C9)),
+      ),
+      child: ExpansionTile(
         leading: CircleAvatar(
-          backgroundColor: const Color(0xFFE3F2F7),
+          backgroundColor: AppColors.lightGreenBg,
+          foregroundColor: AppColors.primaryGreen,
           child: Text((patient['name']?.toString().isNotEmpty ?? false)
               ? patient['name'].toString()[0].toUpperCase()
               : '?'),
@@ -134,12 +180,37 @@ class _DoctorPatientListScreenState extends State<DoctorPatientListScreen> {
         title: Text(patient['name']?.toString() ?? '',
             style: const TextStyle(fontWeight: FontWeight.w700)),
         subtitle: Text(subtitle.isEmpty ? 'Patient details' : subtitle),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(
-              builder: (_) => DoctorPatientPrescriptionsScreen(
-                  patientId: patient['id'] as int)),
-        ),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        children: [
+          if ((patient['phone']?.toString() ?? '').isNotEmpty)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text('Phone: ${patient['phone']}',
+                  style: const TextStyle(color: AppColors.textGrey)),
+            ),
+          const SizedBox(height: 8),
+          Row(children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => DoctorPatientPrescriptionsScreen(
+                        patientId: patient['id'] as int),
+                  ),
+                ),
+                icon: const Icon(Icons.history_rounded),
+                label: const Text('View history'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            IconButton.outlined(
+              tooltip: 'Delete patient',
+              onPressed: () => _deletePatient(patient),
+              color: Colors.red.shade700,
+              icon: const Icon(Icons.delete_outline_rounded),
+            ),
+          ]),
+        ],
       ),
     );
   }
@@ -201,11 +272,12 @@ class _DoctorPatientPrescriptionsScreenState
             .toList()
         : <Map<String, dynamic>>[];
     return Scaffold(
-      backgroundColor: const Color(0xFFF7FAFB),
+      backgroundColor: Colors.white,
       appBar: AppBar(
           title: Text(patient['name']?.toString() ?? 'Patient prescriptions'),
           backgroundColor: Colors.white,
-          foregroundColor: const Color(0xFF17324A)),
+          foregroundColor: AppColors.textBlack,
+          elevation: 0),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
@@ -232,7 +304,7 @@ class _DoctorPatientPrescriptionsScreenState
 
   Widget _patientHeader(Map<String, dynamic> patient) => Card(
         elevation: 0,
-        color: const Color(0xFFEAF7FB),
+        color: AppColors.lightGreenBg,
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Text(
@@ -262,7 +334,7 @@ class _DoctorPatientPrescriptionsScreenState
                   ? 'Printed prescription'
                   : DateFormat('dd MMM yyyy • hh:mm a').format(date.toLocal()),
               style: const TextStyle(
-                  fontWeight: FontWeight.w800, color: Color(0xFF1B7A9B))),
+                  fontWeight: FontWeight.w800, color: AppColors.primaryGreen))),
           if ((record['diagnosis']?.toString() ?? '').isNotEmpty)
             Padding(
                 padding: const EdgeInsets.only(top: 5),

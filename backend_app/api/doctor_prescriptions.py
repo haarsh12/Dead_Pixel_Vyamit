@@ -280,6 +280,50 @@ def patient_prescriptions(
     }
 
 
+@router.delete("/patients/{patient_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_patient(
+    patient_id: int,
+    response: Response,
+    user_id: int = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> None:
+    """Delete a directory entry and its doctor-owned prescription records."""
+    _no_store(response)
+    _doctor_user(session, user_id)
+    patient = session.get(DoctorPatient, patient_id)
+    if patient is None or patient.owner_id != user_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
+    records = session.exec(
+        select(DoctorPrescription).where(
+            DoctorPrescription.owner_id == user_id,
+            DoctorPrescription.patient_id == patient_id,
+        )
+    ).all()
+    for record in records:
+        session.delete(record)
+    session.delete(patient)
+    session.commit()
+    logger.info("Doctor patient deleted owner=%s patient=%s records=%s", user_id, patient_id, len(records))
+
+
+@router.delete("/history/{prescription_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_prescription(
+    prescription_id: int,
+    response: Response,
+    user_id: int = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> None:
+    """Remove one doctor-owned history record after explicit UI confirmation."""
+    _no_store(response)
+    _doctor_user(session, user_id)
+    record = session.get(DoctorPrescription, prescription_id)
+    if record is None or record.owner_id != user_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Prescription not found")
+    session.delete(record)
+    session.commit()
+    logger.info("Doctor prescription deleted owner=%s prescription=%s", user_id, prescription_id)
+
+
 @router.get("/history")
 def prescription_history(
     response: Response,

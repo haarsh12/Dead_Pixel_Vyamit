@@ -139,32 +139,6 @@ class _PrescriptionPreviewScreenState extends State<PrescriptionPreviewScreen> {
       widget.togglePrinter();
       return;
     }
-    // Confirm the server-side doctor profile immediately before the physical
-    // print. This prevents a stale local profile from producing a prescription
-    // with an old or removed medical registration number.
-    Map<String, dynamic> readiness;
-    try {
-      readiness = await _service.profileReadiness();
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text(
-                  'Could not verify the doctor profile. Check the connection and try again.')),
-        );
-      }
-      return;
-    }
-    if (readiness['can_print'] != true) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text(
-                  'Add a medical registration number in Profile before printing.')),
-        );
-      }
-      return;
-    }
     setState(() => _isPrinting = true);
     final draft = _buildDraft();
     try {
@@ -172,13 +146,12 @@ class _PrescriptionPreviewScreenState extends State<PrescriptionPreviewScreen> {
       final result = await _printer.printPrescription(
         draft,
         DoctorProfileSnapshot(
-          doctorName:
-              readiness['doctor_name']?.toString() ?? widget.shopDetails.ownerName,
+          // Printing uses saved local details so Manual mode continues to
+          // work without internet. Saving history happens separately below.
+          doctorName: widget.shopDetails.ownerName,
           clinicName: widget.shopDetails.shopName,
-          qualifications: readiness['qualifications']?.toString() ??
-              widget.shopDetails.qualifications,
-          medicalRegistrationNumber:
-              readiness['medical_registration_number']?.toString() ?? registration,
+          qualifications: widget.shopDetails.qualifications,
+          medicalRegistrationNumber: registration,
           address: widget.shopDetails.address,
           phone: widget.shopDetails.phone1,
         ),
@@ -193,17 +166,24 @@ class _PrescriptionPreviewScreenState extends State<PrescriptionPreviewScreen> {
 
       if (!mounted) return;
       final savePatient = await _askToSavePatient();
-      await _service.recordPrintedPrescription(
-        draft,
-        signatureStrokes: _signatureKey.currentState?.strokeData ?? const [],
-        savePatient: savePatient,
-      );
+      var synced = true;
+      try {
+        await _service.recordPrintedPrescription(
+          draft,
+          signatureStrokes: _signatureKey.currentState?.strokeData ?? const [],
+          savePatient: savePatient,
+        );
+      } catch (_) {
+        synced = false;
+      }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text(savePatient
-                ? 'Prescription printed and patient saved.'
-                : 'Prescription printed and saved to history.')),
+            content: Text(!synced
+                ? 'Prescription printed. History will sync when you are online.'
+                : savePatient
+                    ? 'Prescription printed and patient saved.'
+                    : 'Prescription printed and saved to history.')),
       );
       Navigator.of(context).pop();
     } catch (_) {
@@ -211,7 +191,7 @@ class _PrescriptionPreviewScreenState extends State<PrescriptionPreviewScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
               content: Text(
-                  'Printed, but the history record could not be saved. Please check your connection.')),
+                  'Could not print the prescription. Check the printer connection.')),
         );
       }
     } finally {
@@ -228,15 +208,31 @@ class _PrescriptionPreviewScreenState extends State<PrescriptionPreviewScreen> {
     return '$day/$month/${date.year}  $hour:$minute';
   }
 
+  void _clearAll() {
+    _patientName.clear();
+    _patientAge.clear();
+    _patientGender.clear();
+    _patientPhone.clear();
+    _diagnosis.clear();
+    _notes.clear();
+    for (final medication in _medications) {
+      medication.dispose();
+    }
+    setState(() {
+      _prescribedAt = DateTime.now();
+      _medications = [_MedicationForm.empty()];
+    });
+    _signatureKey.currentState?.clear();
+  }
+
   @override
   Widget build(BuildContext context) {
-    const blue = Color(0xFF1B7A9B);
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F8F9),
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('Review prescription'),
         backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF17324A),
+        foregroundColor: AppColors.textBlack,
         actions: [
           IconButton(
             tooltip: 'Connect printer',
@@ -245,6 +241,11 @@ class _PrescriptionPreviewScreenState extends State<PrescriptionPreviewScreen> {
                     ? AppColors.printerConnected
                     : AppColors.printerDisconnected),
             onPressed: widget.togglePrinter,
+          ),
+          IconButton(
+            tooltip: 'Clear prescription',
+            onPressed: _isPrinting ? null : _clearAll,
+            icon: const Icon(Icons.clear_all_rounded),
           ),
         ],
       ),
@@ -256,7 +257,8 @@ class _PrescriptionPreviewScreenState extends State<PrescriptionPreviewScreen> {
             Container(
               padding: const EdgeInsets.all(15),
               decoration: BoxDecoration(
-                  color: const Color(0xFFEAF7FB),
+                  color: AppColors.lightGreenBg,
+                  border: Border.all(color: const Color(0xFFC8E6C9)),
                   borderRadius: BorderRadius.circular(14)),
               child: const Text(
                   'Review and edit every field before printing. The print is formatted vertically for a 57–58 mm thermal printer.'),
@@ -289,7 +291,8 @@ class _PrescriptionPreviewScreenState extends State<PrescriptionPreviewScreen> {
               _field('Disease / diagnosis', _diagnosis),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.calendar_today_outlined, color: blue),
+                leading: const Icon(Icons.calendar_today_outlined,
+                    color: AppColors.primaryGreen),
                 title: const Text('Prescription date & time'),
                 subtitle: Text(_dateLabel),
                 trailing: const Icon(Icons.edit_outlined),
@@ -345,7 +348,7 @@ class _PrescriptionPreviewScreenState extends State<PrescriptionPreviewScreen> {
                 : const Icon(Icons.print_rounded),
             label: Text(_isPrinting ? 'Printing…' : 'Print prescription'),
             style: ElevatedButton.styleFrom(
-                backgroundColor: blue,
+                backgroundColor: AppColors.primaryGreen,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16)),
           ),
@@ -360,7 +363,7 @@ class _PrescriptionPreviewScreenState extends State<PrescriptionPreviewScreen> {
         color: Colors.white,
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
-            side: const BorderSide(color: Color(0xFFE0E8EB))),
+            side: const BorderSide(color: Color(0xFFC8E6C9))),
         child: Padding(
           padding: const EdgeInsets.all(15),
           child:
@@ -369,7 +372,7 @@ class _PrescriptionPreviewScreenState extends State<PrescriptionPreviewScreen> {
                 style: const TextStyle(
                     fontWeight: FontWeight.w800,
                     fontSize: 16,
-                    color: Color(0xFF17324A))),
+                    color: AppColors.primaryGreen))),
             const SizedBox(height: 12),
             ...children,
           ]),
@@ -392,6 +395,7 @@ class _PrescriptionPreviewScreenState extends State<PrescriptionPreviewScreen> {
     bool isRequired = false,
     TextInputType? keyboardType,
     int maxLines = 1,
+    String? hintText,
   }) =>
       Padding(
         padding: const EdgeInsets.only(bottom: 10),
@@ -406,6 +410,7 @@ class _PrescriptionPreviewScreenState extends State<PrescriptionPreviewScreen> {
               : null,
           decoration: InputDecoration(
               labelText: label,
+              hintText: hintText,
               border: const OutlineInputBorder(),
               isDense: true),
         ),
@@ -415,9 +420,9 @@ class _PrescriptionPreviewScreenState extends State<PrescriptionPreviewScreen> {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-            color: const Color(0xFFF8FBFC),
+            color: AppColors.lightGreenBg,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFDCE9ED))),
+            border: Border.all(color: const Color(0xFFC8E6C9))),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
             Text('Medicine ${index + 1}',
@@ -440,13 +445,16 @@ class _PrescriptionPreviewScreenState extends State<PrescriptionPreviewScreen> {
             const SizedBox(width: 10),
             Expanded(child: _field('Route', medication.route)),
           ]),
-          _field('Frequency / times per day', medication.frequency),
+          _field('Frequency / times per day', medication.frequency,
+              hintText: 'e.g. Twice daily'),
           Row(children: [
             Expanded(child: _field('Duration', medication.duration)),
             const SizedBox(width: 10),
-            Expanded(child: _field('Before / after food', medication.timing)),
+            Expanded(child: _field('Before / after food', medication.timing,
+                hintText: 'e.g. After food')),
           ]),
-          _field('Medicine instructions', medication.instructions, maxLines: 2),
+          _field('Description / instructions (Hinglish)', medication.instructions,
+              hintText: 'e.g. Khane ke baad din mein do baar', maxLines: 2),
         ]),
       );
 }
