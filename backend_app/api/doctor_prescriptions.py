@@ -280,13 +280,13 @@ def patient_prescriptions(
     }
 
 
-@router.delete("/patients/{patient_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/patients/{patient_id}")
 def delete_patient(
     patient_id: int,
     response: Response,
     user_id: int = Depends(get_current_user),
     session: Session = Depends(get_session),
-) -> None:
+) -> Dict[str, str]:
     """Delete a directory entry and its doctor-owned prescription records."""
     _no_store(response)
     _doctor_user(session, user_id)
@@ -304,15 +304,16 @@ def delete_patient(
     session.delete(patient)
     session.commit()
     logger.info("Doctor patient deleted owner=%s patient=%s records=%s", user_id, patient_id, len(records))
+    return {"message": "Patient deleted"}
 
 
-@router.delete("/history/{prescription_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/history/{prescription_id}")
 def delete_prescription(
     prescription_id: int,
     response: Response,
     user_id: int = Depends(get_current_user),
     session: Session = Depends(get_session),
-) -> None:
+) -> Dict[str, str]:
     """Remove one doctor-owned history record after explicit UI confirmation."""
     _no_store(response)
     _doctor_user(session, user_id)
@@ -322,6 +323,7 @@ def delete_prescription(
     session.delete(record)
     session.commit()
     logger.info("Doctor prescription deleted owner=%s prescription=%s", user_id, prescription_id)
+    return {"message": "Prescription deleted"}
 
 
 @router.get("/history")
