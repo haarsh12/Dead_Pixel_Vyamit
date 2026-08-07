@@ -1,4 +1,4 @@
-"""LLM pipeline with Mistral primary and Gemini fallback providers."""
+"""LLM pipeline using LangChain for robust model handling."""
 
 import json
 import logging
@@ -7,7 +7,6 @@ import time
 from typing import Any, Dict, Tuple
 
 from .config import config
-
 
 logger = logging.getLogger(__name__)
 
@@ -20,62 +19,57 @@ ERROR_RESPONSE: Dict[str, Any] = {
 
 
 class LLMPipeline:
-    """Invoke Mistral, then Gemini, and always return the shared response shape."""
+    """Invoke LLMs using LangChain with automatic fallback."""
 
     def __init__(self) -> None:
-        self.mistral_api_key = os.getenv("MISTRAL_API_KEY", "").strip()
         self.gemini_api_key = os.getenv("GEMINI_API_KEY", "").strip()
-        self._mistral_client = None
-        self._gemini_client = None
-        self._gemini_types = None
+        self.mistral_api_key = os.getenv("MISTRAL_API_KEY", "").strip()
+        self._gemini_llm = None
+        self._mistral_llm = None
 
-    def _init_mistral(self) -> bool:
-        """Create a Mistral client across supported SDK versions."""
-        if self._mistral_client is not None:
-            return True
-        if not self.mistral_api_key:
-            return False
-
-        try:
-            # Try current Mistral SDK (1.0+)
-            from mistralai import Mistral
-            self._mistral_client = Mistral(api_key=self.mistral_api_key)
-            logger.info("Mistral client initialized (v1.0+)")
-            return True
-        except (ImportError, AttributeError):
-            pass
-
-        try:
-            # Try legacy SDK (0.x)
-            from mistralai.client import MistralClient
-            self._mistral_client = MistralClient(api_key=self.mistral_api_key)
-            logger.info("Mistral client initialized (legacy)")
-            return True
-        except (ImportError, AttributeError):
-            pass
-
-        logger.warning("Mistral SDK not found or incompatible")
-        return False
-
-    def _init_gemini(self) -> bool:
-        """Create a client for the supported Google Gen AI SDK."""
-        if self._gemini_client is not None:
+    def _init_gemini(self):
+        """Initialize Gemini LLM using LangChain."""
+        if self._gemini_llm is not None:
             return True
         if not self.gemini_api_key:
             return False
 
         try:
-            from google import genai
-            from google.genai import types
-
-            self._gemini_client = genai.Client(api_key=self.gemini_api_key)
-            self._gemini_types = types
+            from langchain_google_genai import ChatGoogleGenerativeAI
+            
+            self._gemini_llm = ChatGoogleGenerativeAI(
+                model="gemini-1.5-flash",
+                google_api_key=self.gemini_api_key,
+                temperature=config.llm.fallback_temperature,
+                max_tokens=config.llm.fallback_max_tokens,
+            )
+            logger.info("Gemini LLM initialized via LangChain")
+            return True
         except Exception as exc:
-            logger.error("Gemini initialization failed: %s", exc)
+            logger.error(f"Gemini initialization failed: {exc}")
             return False
 
-        logger.info("Gemini client initialized")
-        return True
+    def _init_mistral(self):
+        """Initialize Mistral LLM using LangChain."""
+        if self._mistral_llm is not None:
+            return True
+        if not self.mistral_api_key:
+            return False
+
+        try:
+            from langchain_mistralai import ChatMistralAI
+            
+            self._mistral_llm = ChatMistralAI(
+                model=config.llm.primary_model,
+                mistral_api_key=self.mistral_api_key,
+                temperature=config.llm.primary_temperature,
+                max_tokens=config.llm.primary_max_tokens,
+            )
+            logger.info("Mistral LLM initialized via LangChain")
+            return True
+        except Exception as exc:
+            logger.warning(f"Mistral initialization failed: {exc}")
+            return False
 
     @staticmethod
     def _parse_json_response(content: str) -> Dict[str, Any]:
@@ -86,9 +80,12 @@ class LLMPipeline:
         cleaned = content.strip()
         if cleaned.startswith("```"):
             lines = cleaned.splitlines()
-            if lines[-1].strip() != "```":
-                raise ValueError("Model returned an unterminated markdown code block.")
-            cleaned = "\n".join(lines[1:-1]).strip()
+            if lines[-1].strip() == "```":
+                cleaned = "\n".join(lines[1:-1]).strip()
+            elif lines[0].startswith("```json"):
+                cleaned = "\n".join(lines[1:]).strip()
+                if cleaned.endswith("```"):
+                    cleaned = cleaned[:-3].strip()
 
         parsed = json.loads(cleaned)
         if not isinstance(parsed, dict):
@@ -96,56 +93,36 @@ class LLMPipeline:
         return parsed
 
     def invoke_mistral(self, prompt: str) -> Tuple[Dict[str, Any], float]:
-        """Invoke Mistral and return its parsed JSON response."""
+        """Invoke Mistral via LangChain."""
         if not self._init_mistral():
-            raise RuntimeError("Mistral client is not configured.")
+            raise RuntimeError("Mistral is not configured.")
 
         start = time.perf_counter()
-        chat = self._mistral_client.chat
-        kwargs = {
-            "model": config.llm.primary_model,
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": config.llm.primary_temperature,
-            "max_tokens": config.llm.primary_max_tokens,
-        }
         try:
-            response = chat.complete(**kwargs) if hasattr(chat, "complete") else chat(**kwargs)
-            parsed = self._parse_json_response(response.choices[0].message.content)
+            response = self._mistral_llm.invoke(prompt)
+            parsed = self._parse_json_response(response.content)
+            duration = time.perf_counter() - start
+            logger.info(f"Mistral response in {duration * 1000:.2f}ms")
+            return parsed, duration
         except Exception as exc:
-            logger.warning("Mistral invocation failed: %s", exc)
+            logger.warning(f"Mistral invocation failed: {exc}")
             raise
 
-        duration = time.perf_counter() - start
-        logger.info("Mistral response in %.2fms", duration * 1000)
-        return parsed, duration
-
     def invoke_gemini(self, prompt: str) -> Tuple[Dict[str, Any], float]:
-        """Invoke configured Gemini fallback models until one returns valid JSON."""
+        """Invoke Gemini via LangChain."""
         if not self._init_gemini():
-            raise RuntimeError("Gemini client is not configured.")
+            raise RuntimeError("Gemini is not configured.")
 
         start = time.perf_counter()
-        errors = []
-        for model_name in config.llm.fallback_models:
-            try:
-                response = self._gemini_client.models.generate_content(
-                    model=model_name,
-                    contents=prompt,
-                    config=self._gemini_types.GenerateContentConfig(
-                        temperature=config.llm.fallback_temperature,
-                        max_output_tokens=config.llm.fallback_max_tokens,
-                        response_mime_type="application/json",
-                    ),
-                )
-                parsed = self._parse_json_response(response.text)
-                duration = time.perf_counter() - start
-                logger.info("Gemini (%s) response in %.2fms", model_name, duration * 1000)
-                return parsed, duration
-            except Exception as exc:
-                errors.append(f"{model_name}: {exc}")
-                logger.warning("Gemini model %s failed: %s", model_name, exc)
-
-        raise RuntimeError("All Gemini fallback models failed: " + "; ".join(errors))
+        try:
+            response = self._gemini_llm.invoke(prompt)
+            parsed = self._parse_json_response(response.content)
+            duration = time.perf_counter() - start
+            logger.info(f"Gemini response in {duration * 1000:.2f}ms")
+            return parsed, duration
+        except Exception as exc:
+            logger.error(f"Gemini invocation failed: {exc}")
+            raise
 
     def invoke(self, prompt: str) -> Tuple[Dict[str, Any], float, str]:
         """Invoke the primary model with fallback; never expose raw provider errors."""
@@ -155,19 +132,25 @@ class LLMPipeline:
                 "msg": "Please provide a question or billing request.",
             }, 0.0, "error"
 
+        # Try Mistral first (if configured)
         if self.mistral_api_key:
             try:
                 response, duration = self.invoke_mistral(prompt)
                 return response, duration, config.llm.primary_model
-            except Exception:
-                logger.info("Falling back from Mistral to Gemini")
+            except Exception as e:
+                logger.warning(f"Mistral failed, trying Gemini: {e}")
+        else:
+            logger.info("Mistral not configured, using Gemini")
 
+        # Try Gemini fallback
         if self.gemini_api_key:
             try:
                 response, duration = self.invoke_gemini(prompt)
-                return response, duration, "gemini-fallback"
+                return response, duration, "gemini-1.5-flash"
             except Exception as exc:
-                logger.error("All configured LLM providers failed: %s", exc)
+                logger.error(f"All LLM providers failed: {exc}")
+        else:
+            logger.error("No LLM API keys configured")
 
         return ERROR_RESPONSE.copy(), 0.0, "error"
 
@@ -179,7 +162,7 @@ class LLMPipeline:
             logger.warning("Invalid response structure - missing fields")
             return False
         if response["type"] not in {"BILL", "QUERY", "ERROR"}:
-            logger.warning("Invalid response type: %s", response["type"])
+            logger.warning(f"Invalid response type: {response['type']}")
             return False
         if not isinstance(response["items"], list):
             logger.warning("Items field is not a list")
