@@ -46,21 +46,22 @@ class DoctorPrescriptionPrinterService {
               pw.Center(
                 child: pw.Text(
                   doctor.clinicName.trim().isEmpty
-                      ? 'CLINIC'
-                      : doctor.clinicName.trim(),
+                      ? 'CLINIC / PRACTICE'
+                      : doctor.clinicName.trim().toUpperCase(),
                   textAlign: pw.TextAlign.center,
                   style: pw.TextStyle(
-                      fontSize: 11, fontWeight: pw.FontWeight.bold),
+                      fontSize: 12, fontWeight: pw.FontWeight.bold),
                 ),
               ),
+              pw.SizedBox(height: 2),
               pw.Center(
                 child: pw.Text(
-                  doctor.doctorName.trim().isEmpty
-                      ? 'Doctor'
-                      : doctor.doctorName.trim(),
+                  doctor.doctorName.trim().startsWith('Dr.')
+                      ? doctor.doctorName.trim()
+                      : 'Dr. ${doctor.doctorName.trim().isEmpty ? 'Doctor' : doctor.doctorName.trim()}',
                   textAlign: pw.TextAlign.center,
                   style:
-                      pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+                      pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
                 ),
               ),
               if (doctor.qualifications.trim().isNotEmpty)
@@ -68,38 +69,45 @@ class DoctorPrescriptionPrinterService {
                   child: pw.Text(
                     doctor.qualifications.trim(),
                     textAlign: pw.TextAlign.center,
-                    style: const pw.TextStyle(fontSize: 6.5),
+                    style: const pw.TextStyle(fontSize: 7),
                   ),
                 ),
               pw.Center(
                 child: pw.Text(
                   'Reg. No: ${doctor.medicalRegistrationNumber.trim()}',
-                  style: const pw.TextStyle(fontSize: 6.5),
+                  style: const pw.TextStyle(fontSize: 7),
                 ),
               ),
               if (doctor.address.trim().isNotEmpty)
                 pw.Center(
                   child: pw.Text(doctor.address.trim(),
                       textAlign: pw.TextAlign.center,
-                      style: const pw.TextStyle(fontSize: 6)),
+                      style: const pw.TextStyle(fontSize: 6.5)),
                 ),
-              pw.Divider(thickness: 0.7),
+              if (doctor.phone.trim().isNotEmpty)
+                pw.Center(
+                  child: pw.Text('Ph: ${doctor.phone.trim()}',
+                      textAlign: pw.TextAlign.center,
+                      style: const pw.TextStyle(fontSize: 6.5)),
+                ),
+              pw.Divider(thickness: 1.0),
               _line('Date', _dateTime(draft.prescribedAt)),
-              _line('Patient', draft.patientName),
+              _line('Patient', draft.patientName.isEmpty ? 'General Patient' : draft.patientName),
               if (draft.patientAge != null ||
                   draft.patientGender.trim().isNotEmpty)
                 _line(
                   'Age / Sex',
-                  '${draft.patientAge?.toString() ?? '-'} / ${draft.patientGender.trim().isEmpty ? '-' : draft.patientGender.trim()}',
+                  '${draft.patientAge?.toString() ?? '-'} yrs / ${draft.patientGender.trim().isEmpty ? '-' : draft.patientGender.trim()}',
                 ),
               if (draft.patientPhone.trim().isNotEmpty)
                 _line('Phone', draft.patientPhone.trim()),
               if (draft.diagnosis.trim().isNotEmpty)
                 _line('Diagnosis', draft.diagnosis.trim()),
-              pw.Divider(thickness: 0.7),
-              pw.Text('Rx',
+              pw.Divider(thickness: 1.0),
+              pw.Text('Rx (Medications)',
                   style: pw.TextStyle(
-                      fontSize: 10, fontWeight: pw.FontWeight.bold)),
+                      fontSize: 11, fontWeight: pw.FontWeight.bold)),
+              pw.SizedBox(height: 2),
               ...draft.medications
                   .asMap()
                   .entries
@@ -108,14 +116,14 @@ class DoctorPrescriptionPrinterService {
                 (entry) {
                   final medication = entry.value;
                   return pw.Padding(
-                    padding: const pw.EdgeInsets.only(top: 3),
+                    padding: const pw.EdgeInsets.only(top: 4, bottom: 4),
                     child: pw.Column(
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
                         pw.Text(
-                          '${entry.key + 1}. ${medication.name.trim()}${medication.dose.trim().isEmpty ? '' : ' - ${medication.dose.trim()}'}',
+                          '${entry.key + 1}. ${medication.name.trim()}${medication.dose.trim().isEmpty ? '' : ' (${medication.dose.trim()})'}',
                           style: pw.TextStyle(
-                              fontSize: 8, fontWeight: pw.FontWeight.bold),
+                              fontSize: 9, fontWeight: pw.FontWeight.bold),
                         ),
                         ..._medicineLines(medication),
                       ],
@@ -124,11 +132,14 @@ class DoctorPrescriptionPrinterService {
                 },
               ),
               if (draft.additionalNotes.trim().isNotEmpty) ...[
-                pw.Divider(thickness: 0.5),
-                pw.Text('Advice: ${draft.additionalNotes.trim()}',
+                pw.Divider(thickness: 0.8),
+                pw.Text('Advice / Instructions:',
+                    style: pw.TextStyle(
+                        fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                pw.Text(draft.additionalNotes.trim(),
                     style: const pw.TextStyle(fontSize: 7)),
               ],
-              pw.SizedBox(height: 8),
+              pw.SizedBox(height: 10),
               if (signatureImage != null)
                 pw.Align(
                   alignment: pw.Alignment.centerRight,
@@ -137,13 +148,16 @@ class DoctorPrescriptionPrinterService {
                 ),
               pw.Align(
                 alignment: pw.Alignment.centerRight,
-                child: pw.Text('Signature',
-                    style: const pw.TextStyle(fontSize: 6.5)),
+                child: pw.Text(
+                    doctor.doctorName.trim().isEmpty
+                        ? 'Doctor\'s Signature'
+                        : 'Dr. ${doctor.doctorName.trim()}',
+                    style: const pw.TextStyle(fontSize: 7)),
               ),
               pw.SizedBox(height: 8),
               pw.Center(
-                child: pw.Text('Computer generated prescription',
-                    style: const pw.TextStyle(fontSize: 5.5)),
+                child: pw.Text('*** Computer Generated Prescription ***',
+                    style: const pw.TextStyle(fontSize: 6)),
               ),
               pw.SizedBox(height: 14),
             ],
@@ -157,12 +171,8 @@ class DoctorPrescriptionPrinterService {
         final imageBytes = await page.toPng();
         final source = img.decodeImage(imageBytes);
         if (source == null) break;
-        // 48 mm x 203 dpi is 384 dots. Keep every prescription vertical;
-        // never squeeze it into the 80 mm retail bill layout.
         final raster =
             source.width == 384 ? source : img.copyResize(source, width: 384);
-        // This is the same proven init → raster → feed sequence used by the
-        // retail PrinterService, while retaining a portrait 58 mm layout.
         await _bluetooth.writeBytes(Uint8List.fromList([0x1b, 0x40]));
         await Future<void>.delayed(const Duration(milliseconds: 100));
         await _bluetooth.writeBytes(Uint8List.fromList(_rasterBytes(raster)));
@@ -181,15 +191,15 @@ class DoctorPrescriptionPrinterService {
 
   pw.Widget _line(String label, String value) {
     return pw.Padding(
-      padding: const pw.EdgeInsets.only(bottom: 1),
+      padding: const pw.EdgeInsets.only(bottom: 2),
       child: pw.RichText(
         text: pw.TextSpan(
           children: [
             pw.TextSpan(
                 text: '$label: ',
                 style:
-                    pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold)),
-            pw.TextSpan(text: value, style: const pw.TextStyle(fontSize: 7)),
+                    pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold)),
+            pw.TextSpan(text: value, style: const pw.TextStyle(fontSize: 7.5)),
           ],
         ),
       ),
@@ -197,24 +207,38 @@ class DoctorPrescriptionPrinterService {
   }
 
   List<pw.Widget> _medicineLines(PrescriptionMedication medication) {
-    final fields = <String>[
-      if (medication.route.trim().isNotEmpty)
+    final details = <String>[
+      if (medication.dose.trim().isNotEmpty) 'Dose: ${medication.dose.trim()}',
+      if (medication.frequency.trim().isNotEmpty) 'Freq: ${medication.frequency.trim()}',
+      if (medication.duration.trim().isNotEmpty) 'Duration: ${medication.duration.trim()}',
+      if (medication.timing.trim().isNotEmpty) 'When: ${medication.timing.trim()}',
+      if (medication.route.trim().isNotEmpty && medication.route.trim().toLowerCase() != 'oral')
         'Route: ${medication.route.trim()}',
-      if (medication.frequency.trim().isNotEmpty)
-        'Frequency: ${medication.frequency.trim()}',
-      if (medication.timing.trim().isNotEmpty)
-        'When: ${medication.timing.trim()}',
-      if (medication.duration.trim().isNotEmpty)
-        'Duration: ${medication.duration.trim()}',
-      if (medication.instructions.trim().isNotEmpty)
-        'Instructions: ${medication.instructions.trim()}',
     ];
-    return fields
-        .map((field) => pw.Padding(
-              padding: const pw.EdgeInsets.only(left: 8, top: 1),
-              child: pw.Text(field, style: const pw.TextStyle(fontSize: 6.5)),
-            ))
-        .toList();
+    final widgets = <pw.Widget>[];
+    if (details.isNotEmpty) {
+      widgets.add(
+        pw.Padding(
+          padding: const pw.EdgeInsets.only(left: 6, top: 1),
+          child: pw.Text(
+            details.join('  |  '),
+            style: const pw.TextStyle(fontSize: 7),
+          ),
+        ),
+      );
+    }
+    if (medication.instructions.trim().isNotEmpty) {
+      widgets.add(
+        pw.Padding(
+          padding: const pw.EdgeInsets.only(left: 6, top: 1),
+          child: pw.Text(
+            'Instructions: ${medication.instructions.trim()}',
+            style: const pw.TextStyle(fontSize: 7),
+          ),
+        ),
+      );
+    }
+    return widgets;
   }
 
   String _dateTime(DateTime value) {

@@ -81,6 +81,15 @@ flutter:
   # --- ASSETS REGISTRATION ---
   assets:
     - assets/
+    - assets/kirana.png
+    - assets/pharmacy.png
+    - assets/doctorprescription.png
+    - assets/dairyproper.png
+    - assets/dairy.png
+    - assets/hardware minimal.png
+    - assets/fastfoodgood.png
+    - assets/general.png
+    - assets/other.png
     - assets/geminigrocery.png
     - assets/mykiranaicon.png
     - assets/vyamitlogo.png
@@ -89,3 +98,4 @@ flutter:
     - assets/images/undraw_shopping_a55o.png
     - assets/images/undraw_details_sgb2.png
     - assets/images/undraw_two-factor-authentication_ofho__1_.png
+

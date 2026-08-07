@@ -251,7 +251,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Get Real-time Data for Preview
     final details = Provider.of<AuthProvider>(context).shopDetails ??
         ShopDetails(
             shopName: "My Shop",
@@ -263,26 +262,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     final isDoctor = _selectedShopCategory == 'Doctor Prescription';
 
-    // Preview Items Data
-    final previewItems = [
-      {
-        'en': 'Rice',
-        'qty': '1 kg',
-        'rate': 100.0,
-        'total': 100.0,
-        'unit': 'kg'
-      },
-      {'en': 'Sugar', 'qty': '2 kg', 'rate': 40.0, 'total': 80.0, 'unit': 'kg'},
-      {'en': 'Milk', 'qty': '2 L', 'rate': 60.0, 'total': 120.0, 'unit': 'L'},
-      {
-        'en': 'Soap',
-        'qty': '5 pcs',
-        'rate': 30.0,
-        'total': 150.0,
-        'unit': 'pcs'
-      },
-    ];
-
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(title: const Text("Profile"), actions: [
@@ -292,7 +271,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ]),
       body: SingleChildScrollView(
         child: Column(children: [
-          // 1. HEADER IMAGE
+          // 1. HEADER IMAGE - Dynamically updates on category change
           Container(
               width: double.infinity,
               height: 250,
@@ -305,14 +284,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           BorderSide(color: AppColors.primaryGreen, width: 4)),
                   boxShadow: [
                     BoxShadow(
-                        color: Colors.black.withOpacity(0.25),
+                        color: Colors.black.withValues(alpha: 0.25),
                         blurRadius: 15,
                         offset: const Offset(0, 8))
                   ]),
               child: ClipRRect(
                   borderRadius:
                       const BorderRadius.vertical(bottom: Radius.circular(26)),
-                  child: Image.asset("assets/geminigrocery.png",
+                  child: Image.asset(getShopCategoryImage(_selectedShopCategory),
+                      key: ValueKey(_selectedShopCategory),
                       fit: BoxFit.cover,
                       errorBuilder: (c, e, s) => const Center(
                           child: Icon(Icons.store,
@@ -328,9 +308,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(isDoctor ? "Doctor Profile" : "Shop Details",
-                            style: TextStyle(
+                            style: const TextStyle(
                                 fontSize: 18, fontWeight: FontWeight.bold)),
-                        // NEW: Save Button
+                        // Save Button
                         ElevatedButton.icon(
                           onPressed: _isSaving ? null : _saveProfileToDatabase,
                           icon: _isSaving
@@ -520,8 +500,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       billId: "INV-PREVIEW",
                                       date: "24-1-2026",
                                       time: "19:45",
-                                      items: previewItems,
-                                      total: 450.0,
+                                      items: const [
+                                        {
+                                          'en': 'Rice',
+                                          'qty': '1 kg',
+                                          'rate': 100.0,
+                                          'total': 100.0,
+                                          'unit': 'kg'
+                                        },
+                                        {
+                                          'en': 'Sugar',
+                                          'qty': '2 kg',
+                                          'rate': 40.0,
+                                          'total': 80.0,
+                                          'unit': 'kg'
+                                        },
+                                        {
+                                          'en': 'Milk',
+                                          'qty': '2 L',
+                                          'rate': 60.0,
+                                          'total': 120.0,
+                                          'unit': 'L'
+                                        },
+                                      ],
+                                      total: 300.0,
                                       isHindi: _selectedTemplate == 'hi',
                                       showQr: _isQrEnabled,
                                       qrImagePath: _uploadedQrPath)

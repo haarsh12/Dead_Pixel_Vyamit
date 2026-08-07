@@ -38,3 +38,33 @@ String canonicalShopCategory(String? value) {
   };
   return aliases[key] ?? kDefaultShopCategory;
 }
+
+/// Maps shop category name to its corresponding image asset path.
+String getShopCategoryImage(String? category) {
+  final canonical = canonicalShopCategory(category);
+  switch (canonical) {
+    case 'Kirana':
+      return 'assets/kirana.png';
+    case 'Pharmacy':
+      return 'assets/pharmacy.png';
+    case 'Doctor Prescription':
+      return 'assets/doctorprescription.png';
+    case 'Dairy':
+      return 'assets/dairyproper.png';
+    case 'Hardware':
+      return 'assets/hardware minimal.png';
+    case 'Fast Food':
+      return 'assets/fastfoodgood.png';
+    case 'General':
+      return 'assets/general.png';
+    case 'Other':
+      return 'assets/other.png';
+    case 'Stationery':
+      return 'assets/general.png';
+    case 'Clothing':
+      return 'assets/other.png';
+    default:
+      return 'assets/geminigrocery.png';
+  }
+}
+

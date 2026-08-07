@@ -95,58 +95,85 @@ class _DoctorPatientListScreenState extends State<DoctorPatientListScreen> {
       groups.putIfAbsent(letter, () => []).add(patient);
     }
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-          title: const Text('Patients'),
-          backgroundColor: Colors.white,
-          foregroundColor: AppColors.textBlack,
-          elevation: 0),
+        title: const Text('Patient Directory',
+            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+        backgroundColor: Colors.white,
+        foregroundColor: AppColors.textBlack,
+        elevation: 0.5,
+      ),
       body: RefreshIndicator(
+        color: AppColors.primaryGreen,
         onRefresh: _load,
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // Search Input
             TextField(
               controller: _search,
               onChanged: (_) => _load(),
               decoration: InputDecoration(
-                hintText: 'Search patient by name',
-                prefixIcon: const Icon(Icons.search),
+                hintText: 'Search patient by name or phone...',
+                hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                prefixIcon: const Icon(Icons.search_rounded, color: AppColors.primaryGreen),
                 suffixIcon: _search.text.isEmpty
                     ? null
                     : IconButton(
-                        icon: const Icon(Icons.clear),
+                        icon: const Icon(Icons.clear_rounded),
                         onPressed: () {
                           _search.clear();
                           _load();
                         },
                       ),
                 filled: true,
-                fillColor: AppColors.lightGreenBg,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFFC8E6C9))),
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(color: Color(0xFFE0E0E0))),
+                enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(color: Color(0xFFE0E0E0))),
+                focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(color: AppColors.primaryGreen, width: 1.5)),
               ),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
             if (_loading)
               const Padding(
                   padding: EdgeInsets.all(36),
-                  child: Center(child: CircularProgressIndicator()))
+                  child: Center(child: CircularProgressIndicator(color: AppColors.primaryGreen)))
             else if (_error != null)
-              _emptyState(Icons.cloud_off_outlined, _error!, action: _load)
+              _emptyState(Icons.cloud_off_rounded, _error!, action: _load)
             else if (_patients.isEmpty)
-              _emptyState(Icons.people_outline,
-                  'No saved patients yet. Patients are added only when you approve it after printing.')
+              _emptyState(Icons.person_search_rounded,
+                  'No saved patients found.\nPatients are added automatically when you approve after printing.')
             else
               ...groups.entries.expand((entry) => [
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(4, 12, 4, 7),
-                      child: Text(entry.key,
-                          style: const TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.primaryGreen)),
+                      padding: const EdgeInsets.fromLTRB(6, 12, 6, 8),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.primaryGreen,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              entry.key,
+                              style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(child: Container(height: 1, color: Colors.grey.shade200)),
+                        ],
+                      ),
                     ),
                     ...entry.value.map((patient) => _patientTile(patient)),
                   ]),
@@ -159,58 +186,107 @@ class _DoctorPatientListScreenState extends State<DoctorPatientListScreen> {
   Widget _patientTile(Map<String, dynamic> patient) {
     final age = patient['age'];
     final gender = patient['gender']?.toString() ?? '';
-    final subtitle = [
-      if (age != null) '$age yrs',
-      if (gender.isNotEmpty) gender
-    ].join(' • ');
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: const BorderSide(color: Color(0xFFC8E6C9)),
+    final phone = patient['phone']?.toString() ?? '';
+    final name = patient['name']?.toString() ?? 'Patient';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE8F5E9)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: ExpansionTile(
+        tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
         leading: CircleAvatar(
+          radius: 22,
           backgroundColor: AppColors.lightGreenBg,
           foregroundColor: AppColors.primaryGreen,
-          child: Text((patient['name']?.toString().isNotEmpty ?? false)
-              ? patient['name'].toString()[0].toUpperCase()
-              : '?'),
+          child: Text(
+            name.isNotEmpty ? name[0].toUpperCase() : '?',
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          ),
         ),
-        title: Text(patient['name']?.toString() ?? '',
-            style: const TextStyle(fontWeight: FontWeight.w700)),
-        subtitle: Text(subtitle.isEmpty ? 'Patient details' : subtitle),
-        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        title: Text(
+          name,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textBlack),
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Wrap(
+            spacing: 6,
+            runSpacing: 4,
+            children: [
+              if (age != null)
+                _chip(Icons.cake_rounded, '$age yrs'),
+              if (gender.isNotEmpty)
+                _chip(Icons.person_rounded, gender),
+              if (phone.isNotEmpty)
+                _chip(Icons.phone_rounded, phone),
+            ],
+          ),
+        ),
         children: [
-          if ((patient['phone']?.toString() ?? '').isNotEmpty)
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text('Phone: ${patient['phone']}',
-                  style: const TextStyle(color: AppColors.textGrey)),
-            ),
-          const SizedBox(height: 8),
-          Row(children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => DoctorPatientPrescriptionsScreen(
-                        patientId: patient['id'] as int),
+          const Divider(height: 16, thickness: 0.8),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => DoctorPatientPrescriptionsScreen(
+                          patientId: patient['id'] as int),
+                    ),
+                  ),
+                  icon: const Icon(Icons.history_edu_rounded, size: 18),
+                  label: const Text('View Prescriptions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryGreen,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                 ),
-                icon: const Icon(Icons.history_rounded),
-                label: const Text('View history'),
               ),
-            ),
-            const SizedBox(width: 10),
-            IconButton.outlined(
-              tooltip: 'Delete patient',
-              onPressed: () => _deletePatient(patient),
-              color: Colors.red.shade700,
-              icon: const Icon(Icons.delete_outline_rounded),
-            ),
-          ]),
+              const SizedBox(width: 8),
+              IconButton.outlined(
+                tooltip: 'Delete Patient',
+                onPressed: () => _deletePatient(patient),
+                color: Colors.red.shade600,
+                style: IconButton.styleFrom(side: BorderSide(color: Colors.red.shade200)),
+                icon: const Icon(Icons.delete_outline_rounded, size: 20),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _chip(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F8E9),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: AppColors.primaryGreen),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 11, color: Color(0xFF33691E), fontWeight: FontWeight.w600),
+          ),
         ],
       ),
     );
@@ -218,16 +294,34 @@ class _DoctorPatientListScreenState extends State<DoctorPatientListScreen> {
 
   Widget _emptyState(IconData icon, String message, {VoidCallback? action}) =>
       Padding(
-        padding: const EdgeInsets.only(top: 80),
-        child: Column(children: [
-          Icon(icon, size: 52, color: Colors.blueGrey.shade300),
-          const SizedBox(height: 14),
-          Text(message,
+        padding: const EdgeInsets.only(top: 60, bottom: 40),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: const BoxDecoration(
+                color: AppColors.lightGreenBg,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 48, color: AppColors.primaryGreen),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              message,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.black54, height: 1.4)),
-          if (action != null)
-            TextButton(onPressed: action, child: const Text('Try again')),
-        ]),
+              style: const TextStyle(color: Colors.black54, height: 1.4, fontSize: 14),
+            ),
+            if (action != null) ...[
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: action,
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: const Text('Try again'),
+                style: OutlinedButton.styleFrom(foregroundColor: AppColors.primaryGreen),
+              ),
+            ],
+          ],
+        ),
       );
 }
 
@@ -272,30 +366,48 @@ class _DoctorPatientPrescriptionsScreenState
             .map((item) => Map<String, dynamic>.from(item))
             .toList()
         : <Map<String, dynamic>>[];
+    final name = patient['name']?.toString() ?? 'Patient Prescriptions';
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-          title: Text(patient['name']?.toString() ?? 'Patient prescriptions'),
-          backgroundColor: Colors.white,
-          foregroundColor: AppColors.textBlack,
-          elevation: 0),
+        title: Text(name, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+        backgroundColor: Colors.white,
+        foregroundColor: AppColors.textBlack,
+        elevation: 0.5,
+      ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: AppColors.primaryGreen))
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
                 if (patient.isNotEmpty) _patientHeader(patient),
-                const SizedBox(height: 12),
-                const Text('Prescription history',
-                    style:
-                        TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
-                const SizedBox(height: 8),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    const Icon(Icons.history_rounded, color: AppColors.primaryGreen, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Prescription Records (${records.length})',
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
                 if (records.isEmpty)
-                  const Padding(
-                      padding: EdgeInsets.all(28),
-                      child: Center(
-                          child: Text(
-                              'No printed prescriptions for this patient yet.')))
+                  Container(
+                    padding: const EdgeInsets.all(30),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: const Center(
+                      child: Text(
+                        'No printed prescriptions for this patient yet.',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ),
+                  )
                 else
                   ...records.map(_recordCard),
               ],
@@ -303,48 +415,214 @@ class _DoctorPatientPrescriptionsScreenState
     );
   }
 
-  Widget _patientHeader(Map<String, dynamic> patient) => Card(
-        elevation: 0,
-        color: AppColors.lightGreenBg,
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Text(
-              [
-                patient['name']?.toString() ?? '',
-                if (patient['age'] != null) '${patient['age']} yrs',
-                if ((patient['gender']?.toString() ?? '').isNotEmpty)
-                  patient['gender'].toString(),
-              ].join(' • '),
-              style: const TextStyle(fontWeight: FontWeight.w700)),
+  Widget _patientHeader(Map<String, dynamic> patient) {
+    final name = patient['name']?.toString() ?? '';
+    final age = patient['age'];
+    final gender = patient['gender']?.toString() ?? '';
+    final phone = patient['phone']?.toString() ?? '';
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.green.shade800, Colors.green.shade600],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-      );
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.green.withValues(alpha: 0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 26,
+            backgroundColor: Colors.white.withValues(alpha: 0.2),
+            foregroundColor: Colors.white,
+            child: Text(
+              name.isNotEmpty ? name[0].toUpperCase() : 'P',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: const TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  [
+                    if (age != null) '$age yrs old',
+                    if (gender.isNotEmpty) gender,
+                    if (phone.isNotEmpty) 'Ph: $phone',
+                  ].join('  •  '),
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _recordCard(Map<String, dynamic> record) {
     final medications = record['medications'] is List
         ? record['medications'] as List
         : <dynamic>[];
     final date = DateTime.tryParse(record['printed_at']?.toString() ?? '');
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      elevation: 0,
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(
-              date == null
-                  ? 'Printed prescription'
-                  : DateFormat('dd MMM yyyy • hh:mm a').format(date.toLocal()),
-              style: const TextStyle(
-                  fontWeight: FontWeight.w800, color: AppColors.primaryGreen)),
-          if ((record['diagnosis']?.toString() ?? '').isNotEmpty)
-            Padding(
-                padding: const EdgeInsets.only(top: 5),
-                child: Text('Diagnosis: ${record['diagnosis']}')),
-          const SizedBox(height: 5),
-          ...medications.whereType<Map>().map((medicine) =>
-              Text('• ${medicine['name'] ?? ''} ${medicine['dose'] ?? ''}')),
-        ]),
+    final dateFormatted = date == null
+        ? 'Printed prescription'
+        : DateFormat('dd MMM yyyy • hh:mm a').format(date.toLocal());
+    final diagnosis = record['diagnosis']?.toString().trim() ?? '';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE0E0E0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.event_available_rounded, size: 16, color: AppColors.primaryGreen),
+                  const SizedBox(width: 6),
+                  Text(
+                    dateFormatted,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.primaryGreen),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppColors.lightGreenBg,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  '${medications.length} Meds',
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primaryGreen),
+                ),
+              ),
+            ],
+          ),
+          if (diagnosis.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.amber.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.amber.shade200),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.medical_information_rounded, size: 15, color: Colors.amber),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Diagnosis: $diagnosis',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.amber.shade900),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const Divider(height: 20, thickness: 0.8),
+          ...medications.whereType<Map>().map((medicine) {
+            final name = medicine['name']?.toString() ?? '';
+            final dose = medicine['dose']?.toString().trim() ?? '';
+            final freq = medicine['frequency']?.toString().trim() ?? '';
+            final duration = medicine['duration']?.toString().trim() ?? '';
+            final timing = medicine['timing']?.toString().trim() ?? '';
+            final instructions = medicine['instructions']?.toString().trim() ?? '';
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.medication_liquid_rounded, size: 16, color: AppColors.primaryGreen),
+                      const SizedBox(width: 6),
+                      Text(
+                        name,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      if (dose.isNotEmpty)
+                        Text(
+                          ' ($dose)',
+                          style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black54, fontSize: 13),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: [
+                      if (freq.isNotEmpty) _medPill('Freq: $freq'),
+                      if (duration.isNotEmpty) _medPill('Duration: $duration', color: Colors.blue),
+                      if (timing.isNotEmpty) _medPill('When: $timing', color: Colors.teal),
+                    ],
+                  ),
+                  if (instructions.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4, left: 4),
+                      child: Text(
+                        'Instructions: $instructions',
+                        style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: Colors.grey.shade700),
+                      ),
+                    ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _medPill(String text, {MaterialColor color = Colors.green}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.shade50,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.shade200, width: 0.8),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color.shade800),
       ),
     );
   }
 }
+

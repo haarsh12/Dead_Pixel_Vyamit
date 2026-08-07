@@ -75,13 +75,20 @@ Return JSON only with exactly this shape:
 }}
 
 Rules:
-1. This is transcription formatting, not clinical decision support. Never diagnose, recommend, add, substitute, or infer a medicine, dose, frequency, duration, or instruction.
-2. Include only details explicitly dictated by the doctor. Use an empty string or null when a field was not spoken.
-3. Fill every medication column when, and only when, the doctor dictated it: name, dose, frequency, duration, timing, route and instructions. Keep unknown columns empty; never guess a duration or dose.
-4. Write patient, diagnosis, medicine, dose, frequency, duration, timing and route in clear English. Use values such as "Twice daily", "5 days" and "After food" where the dictated wording is unambiguous.
-5. `instructions` is the visible medicine description. Preserve the doctor's instruction in Latin Hinglish when it was spoken in Hinglish (for example "Khane ke baad din mein do baar"). Do not rewrite it into a different instruction.
-6. Example: for "Paracetamol khane ke baad din mein do baar", return name "Paracetamol", frequency "Twice daily", timing "After food", instructions "Khane ke baad din mein do baar", and duration "" unless a duration was actually spoken.
-7. Keep each medicine separate. Do not include patient data that was not dictated. Do not return markdown or extra keys.'''
+1. PATIENT DATA SEPARATION:
+   - `name`: MUST contain ONLY the patient's person name (e.g. "Raju", "Raju Sharma"). NEVER include numbers, "age", "years", "yrs", "male", "female" or "patient" in `name`!
+   - `age`: Must be an integer number (e.g. 45). If the doctor says "Raju age 45" or "Raju 45 years", return `"name": "Raju"` and `"age": 45`.
+   - `gender`: "Male", "Female", or "Other".
+   - `phone`: Contact phone number.
+2. This is transcription formatting, not clinical decision support. Never diagnose, recommend, add, substitute, or infer a medicine, dose, frequency, duration, or instruction.
+3. Include only details explicitly dictated by the doctor. Use an empty string or null when a field was not spoken.
+4. Fill every medication column when, and only when, the doctor dictated it: name, dose, frequency, duration, timing, route and instructions. Keep unknown columns empty; never guess a duration or dose.
+5. Write patient, diagnosis, medicine, dose, frequency, duration, timing and route in clear English. Use values such as "Twice daily", "5 days" and "After food" where the dictated wording is unambiguous.
+6. `instructions` is the visible medicine description. Preserve the doctor's instruction in Latin Hinglish when it was spoken in Hinglish (for example "Khane ke baad din mein do baar"). Do not rewrite it into a different instruction.
+7. Example: for "Patient Raju age 45 years Paracetamol 500mg khane ke baad din mein do baar 5 din ke liye", return:
+   patient: {{"name": "Raju", "age": 45, "gender": "", "phone": ""}},
+   medications: [{{ "name": "Paracetamol", "dose": "500mg", "frequency": "Twice daily", "duration": "5 days", "timing": "After food", "instructions": "Khane ke baad din mein do baar 5 din ke liye" }}]
+8. Keep each medicine separate. Do not return markdown or extra keys.'''
 
     def _parse_with_gemini(self, transcription: str) -> Dict[str, Any] | None:
         if not self._get_client():
@@ -109,7 +116,10 @@ Rules:
         patient = {"name": "", "age": None, "gender": "", "phone": ""}
         name_match = re.search(r"(?:patient(?:\s+name)?\s*(?:is|:)?\s*)([A-Za-z][A-Za-z .'-]{1,80})", text, re.I)
         if name_match:
-            patient["name"] = name_match.group(1).strip(" ,.")
+            raw_name = name_match.group(1).strip(" ,.")
+            # Strip trailing age indicators from fallback name
+            raw_name = re.sub(r"\s+\b(?:age|years?|yrs?|male|female|\d{1,3})\b.*$", "", raw_name, flags=re.I).strip(" ,.-:")
+            patient["name"] = raw_name
         age_match = re.search(r"\b(?:age\s*)?(\d{1,3})\s*(?:years?|yrs?)\b", text, re.I)
         if age_match:
             age = int(age_match.group(1))
@@ -128,10 +138,6 @@ Rules:
 
         medications: List[Dict[str, str]] = []
 
-        # This deterministic path makes the most common Hinglish dictation
-        # useful even when an LLM is unavailable. It only normalises phrases
-        # that have an unambiguous literal meaning and leaves unspecified
-        # clinical fields blank.
         frequency = ""
         frequency_patterns = (
             (r"\b(?:once daily|one time(?:s)? daily|ek baar(?: roz)?|din mein ek baar)\b", "Once daily"),
@@ -178,8 +184,6 @@ Rules:
         )
         dose = dose_match.group(1) if dose_match else ""
 
-        # Prefer an explicitly introduced medicine, then support the natural
-        # short form: "Paracetamol khane ke baad din mein do baar".
         medicine_source = ""
         introduced = re.search(
             r"\b(?:prescribe|prescribed|give|take|medicine(?:\s+name)?\s*(?:is)?|tablet|capsule)\s+(.+)$",
@@ -205,8 +209,6 @@ Rules:
                     if dose_location >= 0:
                         instruction_start = dose_location + len(dose)
                 instruction = medicine_source[instruction_start:].strip(" ,.;:-")
-                # Remove only a trailing administrative phrase, never a spoken
-                # food/timing instruction.
                 instruction = re.split(r"\b(?:diagnosis|patient name)\b", instruction, flags=re.I)[0].strip()
                 if instruction:
                     instruction = instruction[0].upper() + instruction[1:]
@@ -240,6 +242,22 @@ Rules:
         if age is not None and not 0 <= age <= 130:
             age = None
 
+        raw_name = self._text(patient_source.get("name"), 120)
+        # Clean patient name from any leaked words like 'age 45', '45 yrs', 'male', 'female'
+        raw_name = re.sub(r"^(?:patient(?:\s+name)?\s*(?:is|:)?\s*)", "", raw_name, flags=re.I)
+        if age is None:
+            age_in_name = re.search(r"\b(?:age\s*)?(\d{1,3})\s*(?:years?|yrs?)?\b", raw_name, re.I)
+            if age_in_name:
+                try:
+                    found_age = int(age_in_name.group(1))
+                    if 0 <= found_age <= 130:
+                        age = found_age
+                except ValueError:
+                    pass
+        cleaned_name = re.sub(r"\s+\b(?:age|years?|yrs?|male|female|\d{1,3})\b.*$", "", raw_name, flags=re.I).strip(" ,.-:")
+        if not cleaned_name:
+            cleaned_name = raw_name.strip(" ,.-:")
+
         medications: List[Dict[str, str]] = []
         source_medicines = result.get("medications") if isinstance(result.get("medications"), list) else []
         for source in source_medicines[:_MAX_MEDICATIONS]:
@@ -251,7 +269,7 @@ Rules:
 
         return {
             "patient": {
-                "name": self._text(patient_source.get("name"), 120),
+                "name": cleaned_name,
                 "age": age,
                 "gender": self._text(patient_source.get("gender"), 30),
                 "phone": self._text(patient_source.get("phone"), 20),
