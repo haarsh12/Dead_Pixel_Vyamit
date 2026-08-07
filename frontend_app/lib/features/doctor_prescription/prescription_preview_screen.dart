@@ -158,9 +158,10 @@ class _PrescriptionPreviewScreenState extends State<PrescriptionPreviewScreen> {
         signaturePng: signaturePng,
       );
       if (result != 'Success') {
-        if (mounted)
+        if (mounted) {
           ScaffoldMessenger.of(context)
               .showSnackBar(SnackBar(content: Text(result)));
+        }
         return;
       }
 
@@ -180,7 +181,7 @@ class _PrescriptionPreviewScreenState extends State<PrescriptionPreviewScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
             content: Text(!synced
-                ? 'Prescription printed. History will sync when you are online.'
+                ? 'Prescription printed. It was not saved to online history because you are offline.'
                 : savePatient
                     ? 'Prescription printed and patient saved.'
                     : 'Prescription printed and saved to history.')),
@@ -372,7 +373,7 @@ class _PrescriptionPreviewScreenState extends State<PrescriptionPreviewScreen> {
                 style: const TextStyle(
                     fontWeight: FontWeight.w800,
                     fontSize: 16,
-                    color: AppColors.primaryGreen))),
+                    color: AppColors.primaryGreen)),
             const SizedBox(height: 12),
             ...children,
           ]),
@@ -450,10 +451,12 @@ class _PrescriptionPreviewScreenState extends State<PrescriptionPreviewScreen> {
           Row(children: [
             Expanded(child: _field('Duration', medication.duration)),
             const SizedBox(width: 10),
-            Expanded(child: _field('Before / after food', medication.timing,
-                hintText: 'e.g. After food')),
+            Expanded(
+                child: _field('Before / after food', medication.timing,
+                    hintText: 'e.g. After food')),
           ]),
-          _field('Description / instructions (Hinglish)', medication.instructions,
+          _field(
+              'Description / instructions (Hinglish)', medication.instructions,
               hintText: 'e.g. Khane ke baad din mein do baar', maxLines: 2),
         ]),
       );

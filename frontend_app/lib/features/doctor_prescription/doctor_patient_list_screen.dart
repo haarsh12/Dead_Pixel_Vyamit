@@ -62,7 +62,8 @@ class _DoctorPatientListScreenState extends State<DoctorPatientListScreen> {
                   onPressed: () => Navigator.pop(context, false),
                   child: const Text('Cancel')),
               FilledButton(
-                style: FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
+                style: FilledButton.styleFrom(
+                    backgroundColor: Colors.red.shade700),
                 onPressed: () => Navigator.pop(context, true),
                 child: const Text('Delete'),
               ),
@@ -145,7 +146,7 @@ class _DoctorPatientListScreenState extends State<DoctorPatientListScreen> {
                           style: const TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.w800,
-                              color: AppColors.primaryGreen))),
+                              color: AppColors.primaryGreen)),
                     ),
                     ...entry.value.map((patient) => _patientTile(patient)),
                   ]),
@@ -334,7 +335,7 @@ class _DoctorPatientPrescriptionsScreenState
                   ? 'Printed prescription'
                   : DateFormat('dd MMM yyyy • hh:mm a').format(date.toLocal()),
               style: const TextStyle(
-                  fontWeight: FontWeight.w800, color: AppColors.primaryGreen))),
+                  fontWeight: FontWeight.w800, color: AppColors.primaryGreen)),
           if ((record['diagnosis']?.toString() ?? '').isNotEmpty)
             Padding(
                 padding: const EdgeInsets.only(top: 5),

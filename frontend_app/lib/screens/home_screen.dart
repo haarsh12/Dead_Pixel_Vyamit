@@ -241,7 +241,22 @@ class _HomeScreenState extends State<HomeScreen> {
         SnackBar(content: Text("Connecting to ${device.name}...")));
     try {
       await bluetooth.connect(device);
-      setState(() => _connectedDevice = device);
+      // Do not wait for a plugin state-stream event to repaint the printer
+      // icon. Some Bluetooth adapters only emit that event after the first
+      // write, which made the connected icon appear grey.
+      final connected = (await bluetooth.isConnected) ?? false;
+      if (mounted) {
+        setState(() {
+          _connectedDevice = connected ? device : null;
+          _isPrinterConnected = connected;
+        });
+      }
+      if (!connected && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Printer connection was not completed.')),
+        );
+      }
     } catch (e) {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text("Failed to connect: $e")));
@@ -253,11 +268,12 @@ class _HomeScreenState extends State<HomeScreen> {
     debugPrint("🏠 HOME SCREEN: Received bill data");
     debugPrint("🏠 Items in billData: ${billData['items']}");
     debugPrint("🏠 Items count: ${(billData['items'] as List?)?.length ?? 0}");
-    
+
     // Get auth token for API calls
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('user_token'); // Changed from 'auth_token' to 'user_token'
-    
+    final token = prefs
+        .getString('user_token'); // Changed from 'auth_token' to 'user_token'
+
     // 1. Check Printer Connection FIRST
     if (_isPrinterConnected) {
       // Get Shop Details
@@ -278,7 +294,8 @@ class _HomeScreenState extends State<HomeScreen> {
       debugPrint("🏠 Calling printer service...");
 
       // Use the new Service with QR code
-      String result = await _printerService.printBill(billData, shopDetails, qrCodePath);
+      String result =
+          await _printerService.printBill(billData, shopDetails, qrCodePath);
 
       if (result == "Success") {
         // Save bill to database
@@ -286,22 +303,23 @@ class _HomeScreenState extends State<HomeScreen> {
           debugPrint("💾 Preparing to save bill to database...");
           final items = billData['items'] as List;
           debugPrint("💾 Bill has ${items.length} items");
-          
+
           final billItems = items.map((item) {
             debugPrint("💾 Item: $item");
             return {
               'name': item['name'],
               'category': item['category'] ?? 'Other',
               'quantity': item['qty'] ?? item['quantity'] ?? 1,
-              'qty_display': item['qty_display'] ?? '${item['qty'] ?? item['quantity'] ?? 1}${item['unit'] ?? ''}',
+              'qty_display': item['qty_display'] ??
+                  '${item['qty'] ?? item['quantity'] ?? 1}${item['unit'] ?? ''}',
               'unit': item['unit'],
               'price': item['price'] ?? item['rate'] ?? 0,
               'total': item['total'],
             };
           }).toList();
-          
+
           debugPrint("💾 Mapped items: $billItems");
-          
+
           final saved = await _analyticsService.saveBill(
             token,
             totalAmount: (billData['total'] as num).toDouble(),
@@ -309,12 +327,12 @@ class _HomeScreenState extends State<HomeScreen> {
             customerName: billData['customerName'] as String?,
             paymentMethod: 'cash',
           );
-          
+
           debugPrint("💾 Bill saved to database: $saved");
         } else {
           debugPrint("❌ No auth token - cannot save bill");
         }
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text("✅ Print Successful! Bill Saved.")));
 
@@ -337,7 +355,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
       // For now, I will allow saving as PDF fallback if connection drops suddenly
       await _printPdf(billData);
-      
+
       // Save bill to database even for PDF
       if (token != null) {
         debugPrint("💾 Preparing to save bill to database (PDF mode)...");
@@ -347,13 +365,14 @@ class _HomeScreenState extends State<HomeScreen> {
             'name': item['name'],
             'category': item['category'] ?? 'Other',
             'quantity': item['qty'] ?? item['quantity'] ?? 1,
-            'qty_display': item['qty_display'] ?? '${item['qty'] ?? item['quantity'] ?? 1}${item['unit'] ?? ''}',
+            'qty_display': item['qty_display'] ??
+                '${item['qty'] ?? item['quantity'] ?? 1}${item['unit'] ?? ''}',
             'unit': item['unit'],
             'price': item['price'] ?? item['rate'] ?? 0,
             'total': item['total'],
           };
         }).toList();
-        
+
         await _analyticsService.saveBill(
           token,
           totalAmount: (billData['total'] as num).toDouble(),
@@ -362,7 +381,7 @@ class _HomeScreenState extends State<HomeScreen> {
           paymentMethod: 'cash',
         );
       }
-      
+
       setState(() {
         _pastBills.insert(0, billData);
       });
@@ -432,7 +451,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
     final pages = [
       ...categoryPages.pages,
-      if (categoryPages.showsSharedDashboard) HistoryScreen(shopDetails: _shopDetails),
+      if (categoryPages.showsSharedDashboard)
+        HistoryScreen(shopDetails: _shopDetails),
       const ProfileScreen(),
     ];
     final navigationItems = [

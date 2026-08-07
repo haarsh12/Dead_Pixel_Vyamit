@@ -39,8 +39,8 @@ class _DoctorVoiceScreenState extends State<DoctorVoiceScreen>
   Timer? _restartTimer;
   bool _speechReady = false;
   bool _isSessionActive = false;
-  bool _isListening = false;
   bool _isProcessing = false;
+  int _draftRequestId = 0;
   String _sessionState = 'IDLE';
   String _transcript = '';
   double _audioLevel = 0;
@@ -57,7 +57,10 @@ class _DoctorVoiceScreenState extends State<DoctorVoiceScreen>
   }
 
   Future<void> _toggleSession() async {
-    if (_isProcessing) return;
+    if (_isProcessing) {
+      _cancelDraftCreation();
+      return;
+    }
     if (_isSessionActive) {
       await _finishSession();
     } else {
@@ -78,7 +81,6 @@ class _DoctorVoiceScreenState extends State<DoctorVoiceScreen>
     setState(() {
       _speechReady = true;
       _isSessionActive = true;
-      _isListening = true;
       _sessionState = 'LISTENING';
       _transcript = '';
       _audioLevel = .25;
@@ -88,18 +90,28 @@ class _DoctorVoiceScreenState extends State<DoctorVoiceScreen>
   }
 
   Future<void> _startListening() async {
-    if (!_speechReady || !_isSessionActive || _isProcessing ||
+    if (!_speechReady ||
+        !_isSessionActive ||
+        _isProcessing ||
         _speech.isListening) {
       return;
     }
     try {
       await _speech.listen(
-        localeId: 'en_IN',
-        listenMode: stt.ListenMode.dictation,
-        listenFor: const Duration(minutes: 5),
-        pauseFor: const Duration(seconds: 8),
-        partialResults: true,
-        cancelOnError: false,
+        listenOptions: stt.SpeechListenOptions(
+          localeId: 'en_IN',
+          listenMode: stt.ListenMode.dictation,
+          listenFor: const Duration(minutes: 5),
+          pauseFor: const Duration(seconds: 8),
+          partialResults: true,
+          cancelOnError: false,
+        ),
+        onSoundLevelChange: (level) {
+          if (!mounted || !_isSessionActive) return;
+          setState(() {
+            _audioLevel = (level.abs() / 30).clamp(.15, 1).toDouble();
+          });
+        },
         onResult: (result) {
           if (!mounted || !_isSessionActive) return;
           final words = result.recognizedWords.trim();
@@ -133,7 +145,7 @@ class _DoctorVoiceScreenState extends State<DoctorVoiceScreen>
     }
   }
 
-  void _onSpeechError(stt.SpeechRecognitionError error) {
+  void _onSpeechError(dynamic error) {
     if (!mounted) return;
     if (error.errorMsg.toLowerCase().contains('permission')) {
       _stopSession(showIdle: false);
@@ -166,7 +178,6 @@ class _DoctorVoiceScreenState extends State<DoctorVoiceScreen>
     if (mounted) {
       setState(() {
         _isSessionActive = false;
-        _isListening = false;
         _audioLevel = 0;
         if (showIdle) _sessionState = 'TAP TO START';
       });
@@ -177,24 +188,26 @@ class _DoctorVoiceScreenState extends State<DoctorVoiceScreen>
 
   Future<void> _createDraft(String transcription) async {
     if (_isProcessing) return;
+    final requestId = ++_draftRequestId;
     setState(() {
       _isProcessing = true;
       _sessionState = 'FORMATTING PRESCRIPTION';
     });
     try {
       final draft = await _service.processVoiceStream(transcription);
-      if (!mounted) return;
+      if (!mounted || requestId != _draftRequestId) return;
       await _openPreview(draft);
     } catch (_) {
-      if (mounted) {
+      if (mounted && requestId == _draftRequestId) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Could not format the dictation. You can still use Manual mode.'),
+            content: Text(
+                'Could not format the dictation. You can still use Manual mode.'),
           ),
         );
       }
     } finally {
-      if (mounted) {
+      if (mounted && requestId == _draftRequestId) {
         setState(() {
           _isProcessing = false;
           _sessionState = 'TAP TO START';
@@ -202,6 +215,19 @@ class _DoctorVoiceScreenState extends State<DoctorVoiceScreen>
         });
       }
     }
+  }
+
+  void _cancelDraftCreation() {
+    // The WebSocket service always closes its channel in `finally`. Bumping
+    // the request id makes any late response harmless after the doctor taps
+    // the orb to close it while formatting is in progress.
+    _draftRequestId++;
+    setState(() {
+      _isProcessing = false;
+      _sessionState = 'TAP TO START';
+      _transcript = '';
+      _audioLevel = 0;
+    });
   }
 
   Future<void> _openPreview(PrescriptionDraft draft) async {
@@ -228,12 +254,6 @@ class _DoctorVoiceScreenState extends State<DoctorVoiceScreen>
     setState(() => _transcript = '');
   }
 
-  Color get _activeColor => _isProcessing
-      ? Colors.teal
-      : _isSessionActive
-          ? AppColors.primaryGreen
-          : Colors.grey;
-
   @override
   void dispose() {
     _silenceTimer?.cancel();
@@ -255,14 +275,17 @@ class _DoctorVoiceScreenState extends State<DoctorVoiceScreen>
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Prescription Voice', style: TextStyle(fontWeight: FontWeight.w800)),
+            Text('Prescription Voice',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
             Text('Speak naturally in English or Hinglish',
                 style: TextStyle(fontSize: 12, color: AppColors.textGrey)),
           ],
         ),
         actions: [
           IconButton(
-            tooltip: widget.isPrinterConnected ? 'Printer connected' : 'Connect printer',
+            tooltip: widget.isPrinterConnected
+                ? 'Printer connected'
+                : 'Connect printer',
             onPressed: widget.togglePrinter,
             icon: Icon(
               Icons.print_rounded,
@@ -279,74 +302,89 @@ class _DoctorVoiceScreenState extends State<DoctorVoiceScreen>
         ],
       ),
       body: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           child: Column(
             children: [
+              // Header guidance tip card
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: AppColors.lightGreenBg,
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: const Color(0xFFC8E6C9)),
                 ),
                 child: const Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Icon(Icons.health_and_safety_rounded,
-                        color: AppColors.primaryGreen),
-                    SizedBox(width: 12),
+                        color: AppColors.primaryGreen, size: 22),
+                    SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         'Dictate patient details, diagnosis, medicine, dose, frequency, duration and food instructions. A complete editable preview always opens before printing.',
-                        style: TextStyle(height: 1.35, color: Color(0xFF28512B)),
+                        style: TextStyle(
+                            height: 1.35,
+                            fontSize: 13,
+                            color: Color(0xFF28512B)),
                       ),
                     ),
                   ],
                 ),
               ),
-              const Spacer(),
+
+              const SizedBox(height: 28),
+
+              // Interactive Kirana-identical voice circle stack
               Stack(
                 alignment: Alignment.center,
                 children: [
                   if (active) ...[
-                    AnimatedBuilder(
-                      animation: _pulseController,
-                      builder: (_, __) => Container(
-                        width: 190 + (_audioLevel * 25),
-                        height: 190 + (_audioLevel * 25),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: _activeColor.withValues(alpha: .18),
-                            width: 2,
-                          ),
-                        ),
-                      ),
-                    ),
-                    Container(
-                      width: 166 + (_audioLevel * 16),
-                      height: 166 + (_audioLevel * 16),
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 500),
+                      height: 160 + (_audioLevel * 20),
+                      width: 160 + (_audioLevel * 20),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: _activeColor.withValues(alpha: .28),
+                          color: (_isProcessing
+                                  ? Colors.teal
+                                  : (_isSessionActive
+                                      ? Colors.green
+                                      : Colors.grey))
+                              .withValues(alpha: 0.2),
                           width: 2,
+                        ),
+                      ),
+                    ),
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      height: 140 + (_audioLevel * 10),
+                      width: 140 + (_audioLevel * 10),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: (_isProcessing
+                                  ? Colors.teal
+                                  : (_isSessionActive
+                                      ? Colors.green
+                                      : Colors.grey))
+                              .withValues(alpha: 0.3),
+                          width: 1.5,
                         ),
                       ),
                     ),
                   ],
                   AnimatedScale(
-                    duration: const Duration(milliseconds: 120),
-                    scale: active ? 1 + (_audioLevel * .10) : 1,
-                    child: InkWell(
+                    scale: active ? 1.0 + (_audioLevel * 0.12) : 1.0,
+                    duration: const Duration(milliseconds: 100),
+                    child: GestureDetector(
                       onTap: _toggleSession,
-                      customBorder: const CircleBorder(),
-                      child: Ink(
-                        width: 142,
-                        height: 142,
+                      child: Container(
+                        height: 120,
+                        width: 120,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           gradient: active
@@ -354,96 +392,223 @@ class _DoctorVoiceScreenState extends State<DoctorVoiceScreen>
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
                                   colors: _isProcessing
-                                      ? [Colors.teal.shade700, Colors.teal.shade400]
-                                      : [Colors.green.shade800, Colors.green.shade500],
+                                      ? [
+                                          Colors.teal.shade700,
+                                          Colors.teal.shade500
+                                        ]
+                                      : [
+                                          Colors.green.shade700,
+                                          Colors.green.shade500
+                                        ],
                                 )
                               : null,
                           color: active ? null : Colors.white,
                           border: Border.all(
-                            color: active ? Colors.transparent : const Color(0xFFA5D6A7),
+                            color: active
+                                ? Colors.transparent
+                                : Colors.grey.shade300,
                             width: 2,
                           ),
                           boxShadow: [
-                            BoxShadow(
-                              color: _activeColor.withValues(alpha: active ? .40 : .16),
-                              blurRadius: active ? 30 : 14,
-                              spreadRadius: active ? 3 : 1,
-                            ),
+                            if (active)
+                              BoxShadow(
+                                color:
+                                    (_isProcessing ? Colors.teal : Colors.green)
+                                        .withValues(alpha: 0.4),
+                                blurRadius: 30,
+                                spreadRadius: 4,
+                              )
+                            else
+                              const BoxShadow(
+                                color: Colors.black12,
+                                blurRadius: 10,
+                                spreadRadius: 2,
+                              ),
                           ],
                         ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              _isProcessing
-                                  ? Icons.auto_awesome_rounded
-                                  : _isSessionActive
-                                      ? Icons.graphic_eq_rounded
-                                      : Icons.mic_rounded,
-                              color: active ? Colors.white : AppColors.primaryGreen,
-                              size: 52,
-                            ),
-                            const SizedBox(height: 7),
-                            Text(
-                              _isProcessing
-                                  ? 'Creating'
-                                  : _isSessionActive
-                                      ? 'Tap to stop'
-                                      : 'Tap to speak',
-                              style: TextStyle(
-                                color: active ? Colors.white : AppColors.primaryGreen,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ],
+                        child: Icon(
+                          !active
+                              ? Icons.mic
+                              : (_isProcessing
+                                  ? Icons.insights
+                                  : Icons.graphic_eq),
+                          size: 50,
+                          color: active ? Colors.white : Colors.black87,
                         ),
                       ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 26),
-              _statusBadge(),
-              const SizedBox(height: 12),
-              Text(
-                _isSessionActive
-                    ? 'Tap the voice circle again when you are finished.'
-                    : 'It also creates the draft automatically after you pause.',
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: AppColors.textGrey),
-              ),
-              const SizedBox(height: 14),
+
+              const SizedBox(height: 20),
+
+              // Status Badge Pill
               Container(
-                constraints: const BoxConstraints(minHeight: 86),
-                width: double.infinity,
-                padding: const EdgeInsets.all(14),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: const Color(0xFFC8E6C9)),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Text(
-                  _transcript.isEmpty
-                      ? 'Your live transcription will appear here.'
-                      : _transcript,
-                  style: TextStyle(
-                    color: _transcript.isEmpty ? Colors.black45 : AppColors.textBlack,
-                    height: 1.35,
+                  color: (!active
+                          ? Colors.grey
+                          : (_isProcessing ? Colors.teal : Colors.green))
+                      .withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: (!active
+                            ? Colors.grey
+                            : (_isProcessing ? Colors.teal : Colors.green))
+                        .withValues(alpha: 0.2),
+                    width: 1,
                   ),
                 ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: !active
+                            ? Colors.grey
+                            : (_isProcessing ? Colors.teal : Colors.green),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      !active
+                          ? (_sessionState == 'MICROPHONE PERMISSION NEEDED'
+                              ? 'Permission Needed'
+                              : 'Tap to start')
+                          : (_isProcessing
+                              ? 'Formatting Prescription...'
+                              : 'Listening...'),
+                      style: TextStyle(
+                        color: !active
+                            ? Colors.grey.shade700
+                            : (_isProcessing
+                                ? Colors.teal.shade700
+                                : Colors.green.shade700),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 14),
+
+              const SizedBox(height: 10),
+
+              // Helper subtitle
+              Text(
+                _isSessionActive
+                    ? 'Tap the voice circle again when finished or pause to submit.'
+                    : 'Creates editable prescription draft automatically after you pause.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+              ),
+
+              const SizedBox(height: 20),
+
+              // Live Transcription Box Card
+              Container(
+                width: double.infinity,
+                constraints: const BoxConstraints(minHeight: 100),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(
+                    color: _transcript.isNotEmpty
+                        ? AppColors.primaryGreen.withValues(alpha: 0.4)
+                        : const Color(0xFFE0E0E0),
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.03),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.record_voice_over_rounded,
+                                size: 16,
+                                color: _transcript.isNotEmpty
+                                    ? AppColors.primaryGreen
+                                    : Colors.grey.shade500),
+                            const SizedBox(width: 6),
+                            Text(
+                              'LIVE TRANSCRIPTION',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.5,
+                                color: _transcript.isNotEmpty
+                                    ? AppColors.primaryGreen
+                                    : Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (_transcript.isNotEmpty)
+                          GestureDetector(
+                            onTap: _clearAll,
+                            child: const Text(
+                              'Clear',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.redAccent,
+                                  fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const Divider(height: 16, thickness: 0.8),
+                    Text(
+                      _transcript.isEmpty
+                          ? 'Your live transcription will appear here as you speak...'
+                          : _transcript,
+                      style: TextStyle(
+                        color: _transcript.isEmpty
+                            ? Colors.black38
+                            : AppColors.textBlack,
+                        fontSize: 14,
+                        height: 1.4,
+                        fontStyle: _transcript.isEmpty
+                            ? FontStyle.italic
+                            : FontStyle.normal,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // Action Buttons Row
               Row(
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: _isProcessing ? null : _clearAll,
-                      icon: const Icon(Icons.clear_all_rounded),
-                      label: const Text('Clear all'),
+                      icon: const Icon(Icons.clear_all_rounded, size: 20),
+                      label: const Text('Clear all',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.primaryGreen,
-                        side: const BorderSide(color: Color(0xFF81C784)),
+                        side: const BorderSide(
+                            color: Color(0xFF81C784), width: 1.5),
                         padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                       ),
                     ),
                   ),
@@ -451,42 +616,27 @@ class _DoctorVoiceScreenState extends State<DoctorVoiceScreen>
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: _isProcessing ? null : _openManualMode,
-                      icon: const Icon(Icons.edit_note_rounded),
-                      label: const Text('Manual mode'),
+                      icon: const Icon(Icons.edit_note_rounded, size: 20),
+                      label: const Text('Manual mode',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primaryGreen,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 14),
+                        elevation: 2,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                       ),
                     ),
                   ),
                 ],
               ),
+              const SizedBox(height: 16),
             ],
           ),
         ),
       ),
     );
   }
-
-  Widget _statusBadge() => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-        decoration: BoxDecoration(
-          color: _activeColor.withValues(alpha: .10),
-          borderRadius: BorderRadius.circular(99),
-          border: Border.all(color: _activeColor.withValues(alpha: .25)),
-        ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(color: _activeColor, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            _sessionState,
-            style: TextStyle(color: _activeColor, fontWeight: FontWeight.w800, fontSize: 12),
-          ),
-        ]),
-      );
 }
+

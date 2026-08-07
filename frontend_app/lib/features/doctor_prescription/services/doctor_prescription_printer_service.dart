@@ -151,6 +151,7 @@ class DoctorPrescriptionPrinterService {
         ),
       );
 
+      var sentToPrinter = false;
       await for (final page
           in Printing.raster(await doc.save(), pages: [0], dpi: 203)) {
         final imageBytes = await page.toPng();
@@ -160,12 +161,19 @@ class DoctorPrescriptionPrinterService {
         // never squeeze it into the 80 mm retail bill layout.
         final raster =
             source.width == 384 ? source : img.copyResize(source, width: 384);
+        // This is the same proven init → raster → feed sequence used by the
+        // retail PrinterService, while retaining a portrait 58 mm layout.
         await _bluetooth.writeBytes(Uint8List.fromList([0x1b, 0x40]));
+        await Future<void>.delayed(const Duration(milliseconds: 100));
         await _bluetooth.writeBytes(Uint8List.fromList(_rasterBytes(raster)));
+        await Future<void>.delayed(const Duration(milliseconds: 100));
         await _bluetooth.writeBytes(Uint8List.fromList([0x0a, 0x0a, 0x0a]));
+        sentToPrinter = true;
         break;
       }
-      return 'Success';
+      return sentToPrinter
+          ? 'Success'
+          : 'Print Error: prescription could not be rendered';
     } catch (error) {
       return 'Print Error: $error';
     }

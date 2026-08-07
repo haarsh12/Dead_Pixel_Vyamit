@@ -56,7 +56,8 @@ class _DoctorPrescriptionHistoryScreenState
                   onPressed: () => Navigator.pop(context, false),
                   child: const Text('Cancel')),
               FilledButton(
-                style: FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
+                style: FilledButton.styleFrom(
+                    backgroundColor: Colors.red.shade700),
                 onPressed: () => Navigator.pop(context, true),
                 child: const Text('Delete'),
               ),
@@ -68,13 +69,14 @@ class _DoctorPrescriptionHistoryScreenState
     try {
       await _service.deletePrescription(prescriptionId);
       if (!mounted) return;
-      setState(() => _records.removeWhere((item) => item['id'] == prescriptionId));
+      setState(
+          () => _records.removeWhere((item) => item['id'] == prescriptionId));
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('Prescription deleted.')));
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not delete this prescription.')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Could not delete this prescription.')));
       }
     }
   }
@@ -100,7 +102,8 @@ class _DoctorPrescriptionHistoryScreenState
                     const SizedBox(height: 160),
                     Center(child: Text(_error!)),
                     Center(
-                      child: TextButton(onPressed: _load, child: const Text('Try again')),
+                      child: TextButton(
+                          onPressed: _load, child: const Text('Try again')),
                     ),
                   ])
                 : _records.isEmpty
@@ -120,7 +123,8 @@ class _DoctorPrescriptionHistoryScreenState
                     : ListView.builder(
                         padding: const EdgeInsets.all(16),
                         itemCount: _records.length,
-                        itemBuilder: (_, index) => _historyCard(_records[index]),
+                        itemBuilder: (_, index) =>
+                            _historyCard(_records[index]),
                       ),
       ),
     );
@@ -158,7 +162,8 @@ class _DoctorPrescriptionHistoryScreenState
         ),
         title: Text(patient['name']?.toString() ?? 'Patient',
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-        subtitle: Text(dateLabel, style: const TextStyle(color: AppColors.textGrey)),
+        subtitle:
+            Text(dateLabel, style: const TextStyle(color: AppColors.textGrey)),
         trailing: IconButton(
           tooltip: 'Delete prescription',
           onPressed: () => _deleteRecord(record),
@@ -170,7 +175,8 @@ class _DoctorPrescriptionHistoryScreenState
             alignment: Alignment.centerLeft,
             child: Text(dateLabel,
                 style: const TextStyle(
-                    fontWeight: FontWeight.w800, color: AppColors.primaryGreen)),
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.primaryGreen)),
           ),
           if ((record['diagnosis']?.toString() ?? '').isNotEmpty)
             Padding(
@@ -188,23 +194,27 @@ class _DoctorPrescriptionHistoryScreenState
               medicine['duration'],
               medicine['timing'],
             ]
-                .where((value) => value != null && value.toString().trim().isNotEmpty)
+                .where((value) =>
+                    value != null && value.toString().trim().isNotEmpty)
                 .join(' • ');
-            final instruction = medicine['instructions']?.toString().trim() ?? '';
+            final instruction =
+                medicine['instructions']?.toString().trim() ?? '';
             return Padding(
               padding: const EdgeInsets.only(bottom: 9),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(
-                  '${medicine['name'] ?? ''}${details.isEmpty ? '' : ' — $details'}',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-                if (instruction.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(instruction,
-                        style: const TextStyle(color: AppColors.textGrey)),
-                  ),
-              ]),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${medicine['name'] ?? ''}${details.isEmpty ? '' : ' — $details'}',
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    if (instruction.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(instruction,
+                            style: const TextStyle(color: AppColors.textGrey)),
+                      ),
+                  ]),
             );
           }),
           const SizedBox(height: 4),
