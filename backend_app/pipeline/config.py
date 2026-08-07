@@ -1,6 +1,6 @@
 """
 Pipeline Configuration
-Centralized configuration for RAG pipeline
+Centralized configuration for RAG pipeline (v1.1)
 """
 import os
 from pydantic import BaseModel
