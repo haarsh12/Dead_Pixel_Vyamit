@@ -7,6 +7,6 @@ class AppColors {
   static const Color cardWhite = Colors.white;
   static const Color textBlack = Color(0xFF1A1A1A);
   static const Color textGrey = Color(0xFF616161);
-  static const Color printerConnected = Colors.blue;
+  static const Color printerConnected = primaryGreen;
   static const Color printerDisconnected = Colors.grey;
 }

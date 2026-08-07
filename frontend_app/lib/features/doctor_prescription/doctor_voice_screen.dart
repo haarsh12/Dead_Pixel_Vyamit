@@ -160,15 +160,19 @@ class _DoctorVoiceScreenState extends State<DoctorVoiceScreen>
   Future<void> _stopSession({required bool showIdle}) async {
     _silenceTimer?.cancel();
     _restartTimer?.cancel();
+    // Flip the session state before stopping STT. Some Android devices emit
+    // a final `done` callback from `stop`, which must not restart a session
+    // that the doctor explicitly closed by tapping the voice circle.
+    if (mounted) {
+      setState(() {
+        _isSessionActive = false;
+        _isListening = false;
+        _audioLevel = 0;
+        if (showIdle) _sessionState = 'TAP TO START';
+      });
+    }
     await _speech.stop();
     _pulseController.stop();
-    if (!mounted) return;
-    setState(() {
-      _isSessionActive = false;
-      _isListening = false;
-      _audioLevel = 0;
-      if (showIdle) _sessionState = 'TAP TO START';
-    });
   }
 
   Future<void> _createDraft(String transcription) async {
@@ -481,7 +485,7 @@ class _DoctorVoiceScreenState extends State<DoctorVoiceScreen>
           const SizedBox(width: 8),
           Text(
             _sessionState,
-            style: TextStyle(color: _activeColor.shade700, fontWeight: FontWeight.w800, fontSize: 12),
+            style: TextStyle(color: _activeColor, fontWeight: FontWeight.w800, fontSize: 12),
           ),
         ]),
       );
