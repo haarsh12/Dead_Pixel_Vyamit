@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 
 class ApiConfig {
   // 🚀 PRODUCTION - Render Backend
-  static const String _productionUrl = "https://project-21-m0or.onrender.com";
+  static const String _productionUrl = "https://dead-pixel-vyamit.onrender.com";
   
   // 🧪 LOCAL DEVELOPMENT URLs
   static const String _emulatorUrl = "http://10.0.2.2:8000";
@@ -11,7 +11,11 @@ class ApiConfig {
   static const String _localUrl = "http://localhost:8000";
 
   static String get baseUrl {
-    // 🧪 ACTIVE: DEVELOPMENT MODE - Real Device via USB
+    // 🚀 ACTIVE: PRODUCTION MODE - Using Render Backend
+    return _productionUrl;
+    
+    // 🧪 TO SWITCH TO DEVELOPMENT: Comment above line and uncomment below
+    /*
     if (kReleaseMode) {
       return _productionUrl;  // Use production in release mode
     }
@@ -22,10 +26,6 @@ class ApiConfig {
     }
     
     return _localUrl;  // Web/Windows
-    
-    // 🚀 TO SWITCH TO PRODUCTION: Comment above code and uncomment below
-    /*
-    return _productionUrl;
     */
   }
 

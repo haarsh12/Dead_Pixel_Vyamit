@@ -36,10 +36,10 @@ class LLMConfig(BaseModel):
     primary_temperature: float = 0.1
     primary_max_tokens: int = 500
     
-    # Fallback models (Gemini)
+    # Fallback models (Gemini) - Updated to current available models
     fallback_models: list[str] = [
-        "gemini-2.5-flash-lite",
-        "gemini-2.5-flash"
+        "gemini-1.5-flash",
+        "gemini-1.5-pro"
     ]
     fallback_temperature: float = 0.1
     fallback_max_tokens: int = 500

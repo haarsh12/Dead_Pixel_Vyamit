@@ -37,25 +37,25 @@ class LLMPipeline:
             return False
 
         try:
-            # Current Mistral SDK releases expose Mistral at the package root.
+            # Try current Mistral SDK (1.0+)
             from mistralai import Mistral
-
             self._mistral_client = Mistral(api_key=self.mistral_api_key)
-        except ImportError:
-            try:
-                # Older SDKs (including 0.x) use MistralClient and chat(...).
-                from mistralai.client import MistralClient
+            logger.info("Mistral client initialized (v1.0+)")
+            return True
+        except (ImportError, AttributeError):
+            pass
 
-                self._mistral_client = MistralClient(api_key=self.mistral_api_key)
-            except Exception as exc:
-                logger.error("Mistral initialization failed: %s", exc)
-                return False
-        except Exception as exc:
-            logger.error("Mistral initialization failed: %s", exc)
-            return False
+        try:
+            # Try legacy SDK (0.x)
+            from mistralai.client import MistralClient
+            self._mistral_client = MistralClient(api_key=self.mistral_api_key)
+            logger.info("Mistral client initialized (legacy)")
+            return True
+        except (ImportError, AttributeError):
+            pass
 
-        logger.info("Mistral client initialized")
-        return True
+        logger.warning("Mistral SDK not found or incompatible")
+        return False
 
     def _init_gemini(self) -> bool:
         """Create a client for the supported Google Gen AI SDK."""
