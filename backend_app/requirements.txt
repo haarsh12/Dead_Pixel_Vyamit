@@ -33,5 +33,5 @@ pydantic-settings>=2.0.0,<3.0.0
 
 # ---- Optional: For RAG admin features ----
 # Uncomment if you need advanced analytics or embedding utilities
-numpy==1.26.4
+numpy>=2.3.0
 # scikit-learn==1.5.2
