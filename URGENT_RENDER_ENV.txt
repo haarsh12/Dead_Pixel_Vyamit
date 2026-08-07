@@ -1,0 +1,23 @@
+🚨 URGENT: SET THIS ON RENDER NOW 🚨
+====================================
+
+Your AI is failing because Render DOESN'T HAVE the API keys!
+
+GO TO RENDER DASHBOARD:
+1. https://dashboard.render.com
+2. Click your service: "dead-pixel-vyamit"
+3. Click "Environment" tab on left
+4. Add this variable:
+
+   Key: GEMINI_API_KEY
+   Value: AIzaSyAb8RN6Kh4F17PkTj4MA7E7Q-OURpF-fKVH4UlnTLQ7pt7lZfmg
+
+5. Click "Save Changes"
+
+RENDER WILL AUTO-REDEPLOY IN 2 MINUTES.
+
+WITHOUT THIS KEY, AI FEATURES CANNOT WORK!
+
+Optional (for Mistral):
+   Key: MISTRAL_API_KEY  
+   Value: pj5CMk9Tfvg8IZpcia9oVZQhWTYdfpCG
