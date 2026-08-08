@@ -1,0 +1,50 @@
+================================================================
+LANGCHAIN MISSING PACKAGES - FIXED
+================================================================
+
+PROBLEM:
+--------
+Backend server shows:
+  "No module named 'langchain_mistralai'"
+  "No module named 'langchain_google_genai'"
+  "AI service temporarily unavailable"
+
+Tests work fine because test environment has the packages.
+
+ROOT CAUSE:
+-----------
+Your virtual environment is missing langchain packages that are
+required by llm_pipeline.py:
+  - langchain>=0.1.0
+  - langchain-google-genai>=0.0.6
+  - langchain-mistralai>=0.0.5
+
+These ARE in requirements.txt but NOT in your current venv.
+
+SOLUTION:
+---------
+Reinstall dependencies from requirements.txt:
+
+  cd backend_app
+  .\venv\Scripts\Activate.ps1
+  pip install -r requirements.txt
+
+This will add the missing langchain packages.
+
+VERIFICATION:
+-------------
+After installing, test:
+  python -c "import langchain_mistralai; import langchain_google_genai; print('Success!')"
+
+Then restart server:
+  python main.py
+
+The voice feature should now work with real AI responses instead of
+"AI service temporarily unavailable."
+
+WHY RENDER WORKS:
+-----------------
+Render deployment uses requirements.txt which has all packages.
+Your local venv was probably created from an older or incomplete
+requirements file.
+================================================================

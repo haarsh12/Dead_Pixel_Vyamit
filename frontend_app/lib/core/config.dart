@@ -3,19 +3,15 @@ import 'package:flutter/foundation.dart';
 
 class ApiConfig {
   // 🚀 PRODUCTION - Render Backend
-  static const String _productionUrl = "https://dead-pixel-vyamit.onrender.com";
+  static const String _productionUrl = "";
   
   // 🧪 LOCAL DEVELOPMENT URLs
   static const String _emulatorUrl = "http://10.0.2.2:8000";
-  static const String _realDeviceUrl = "http://192.168.110.207:8000";  // Replace with your laptop's local IP
+  static const String _realDeviceUrl = "http://10.63.60.207:8000";  // Replace with your laptop's local IP
   static const String _localUrl = "http://localhost:8000";
 
   static String get baseUrl {
-    // 🚀 ACTIVE: PRODUCTION MODE - Using Render Backend
-    return _productionUrl;
-    
-    // 🧪 TO SWITCH TO DEVELOPMENT: Comment above line and uncomment below
-    /*
+    // 🧪 ACTIVE: DEVELOPMENT MODE - Real Device via USB
     if (kReleaseMode) {
       return _productionUrl;  // Use production in release mode
     }
@@ -26,6 +22,10 @@ class ApiConfig {
     }
     
     return _localUrl;  // Web/Windows
+    
+    // 🚀 TO SWITCH TO PRODUCTION: Comment above code and uncomment below
+    /*
+    return _productionUrl;
     */
   }
 
